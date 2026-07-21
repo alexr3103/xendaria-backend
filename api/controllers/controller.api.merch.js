@@ -11,6 +11,16 @@ export async function getProductosMerch(req, res) {
   }
 }
 
+export async function getProductosMerchAdmin(req, res) {
+  try {
+    const productos = await service.getProductosMerch({ incluirInactivos: true });
+    return res.status(200).json(productos);
+  } catch (error) {
+    console.error("[getProductosMerchAdmin]", error);
+    return res.status(500).json({ message: "Error al obtener los productos" });
+  }
+}
+
 export async function getProductoMerchById(req, res) {
   try {
     const id = req.params.id;
@@ -23,6 +33,24 @@ export async function getProductoMerchById(req, res) {
     return res.status(200).json(producto);
   } catch (error) {
     console.error("[getProductoMerchById]", error);
+    return res.status(500).json({ message: "Error al obtener el producto" });
+  }
+}
+
+export async function getProductoMerchAdminById(req, res) {
+  try {
+    const id = req.params.id;
+    const producto = await service.getProductoMerchById(id, {
+      incluirInactivos: true,
+    });
+
+    if (!producto) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+
+    return res.status(200).json(producto);
+  } catch (error) {
+    console.error("[getProductoMerchAdminById]", error);
     return res.status(500).json({ message: "Error al obtener el producto" });
   }
 }
@@ -47,7 +75,9 @@ export async function editarProductoMerch(req, res) {
     const id = req.params.id;
     const { imagenesEliminadas = [], ...data } = req.body;
 
-    const producto = await service.getProductoMerchById(id);
+    const producto = await service.getProductoMerchById(id, {
+      incluirInactivos: true,
+    });
 
     if (!producto) {
       return res.status(404).json({ message: "Producto no encontrado" });
@@ -74,17 +104,61 @@ export async function editarProductoMerch(req, res) {
   }
 }
 
+export async function actualizarEstadoProductoMerch(req, res) {
+  try {
+    const id = req.params.id;
+    const { activo } = req.body;
+
+    if (typeof activo !== "boolean") {
+      return res.status(400).json({ message: "El campo activo debe ser booleano" });
+    }
+
+    const producto = await service.getProductoMerchById(id, {
+      incluirInactivos: true,
+    });
+
+    if (!producto) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+
+    await service.actualizarEstadoProductoMerch(id, activo);
+
+    return res.status(200).json({
+      message: activo ? "Producto habilitado" : "Producto deshabilitado",
+      activo,
+    });
+  } catch (error) {
+    console.error("[actualizarEstadoProductoMerch]", error);
+    return res.status(500).json({ message: "No se pudo actualizar el producto" });
+  }
+}
+
 export async function eliminarProductoMerch(req, res) {
   try {
     const id = req.params.id;
 
-    const producto = await service.getProductoMerchById(id);
+    const producto = await service.getProductoMerchById(id, {
+      incluirInactivos: true,
+    });
 
     if (!producto) {
       return res.status(404).json({ message: "Producto no encontrado" });
     }
 
     await service.eliminarProductoMerch(id);
+
+    const imagenes = Array.isArray(producto.imagenes) ? producto.imagenes : [];
+    const publicIdsAEliminar = imagenes
+      .map((imagen) => imagen?.publicId)
+      .filter(Boolean);
+
+    for (const publicId of publicIdsAEliminar) {
+      try {
+        await deleteImage(publicId);
+      } catch (error) {
+        console.error("[eliminarProductoMerch][deleteImage]", publicId, error);
+      }
+    }
 
     return res.status(200).json({
       message: "Producto eliminado correctamente",

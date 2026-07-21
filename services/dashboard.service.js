@@ -400,16 +400,16 @@ function construirAlertas({
         "puntos_sin_foto",
         "Puntos sin foto principal",
         puntos.sinFoto,
-        "Conviene completarlos para que el detalle del usuario no quede vacio.",
+        "Conviene completarlos para que el detalle del usuario no quede vacío.",
         "/admin/puntos",
         "warning"
       ),
-    puntos.sinInsignia > 0 &&
+    puntos.inactivos > 0 &&
       alerta(
-        "puntos_sin_insignia",
-        "Puntos sin insignia",
-        puntos.sinInsignia,
-        "Son lugares que todavia no entregan recompensa visual.",
+        "puntos_inactivos",
+        "Puntos inactivos",
+        puntos.inactivos,
+        "Revisá estos puntos para confirmar si deben seguir ocultos en el mapa.",
         "/admin/puntos",
         "info"
       ),
@@ -418,7 +418,7 @@ function construirAlertas({
         "rutas_con_puntos_inactivos",
         "Rutas con puntos inactivos",
         rutasConPuntosInactivos,
-        "Revisalas para evitar recorridos con puntos apagados.",
+        "Revisá estas rutas para evitar recorridos con puntos apagados.",
         "/admin/rutas",
         "danger"
       ),
@@ -427,16 +427,34 @@ function construirAlertas({
         "productos_sin_stock",
         "Productos sin stock",
         productos.sinStock,
-        "No deberian quedar visibles si no pueden comprarse.",
+        "No deberían quedar visibles si no pueden comprarse.",
         "/admin/merch",
         "danger"
+      ),
+    productos.bajoStock > 0 &&
+      alerta(
+        "productos_bajo_stock",
+        "Productos con bajo stock",
+        productos.bajoStock,
+        "Conviene reponerlos antes de que se agoten.",
+        "/admin/merch",
+        "warning"
+      ),
+    productos.inactivos > 0 &&
+      alerta(
+        "productos_ocultos",
+        "Productos ocultos",
+        productos.inactivos,
+        "Controlá si siguen pausados o si ya pueden volver a publicarse.",
+        "/admin/merch",
+        "info"
       ),
     ordenes.porEstado.pagada + ordenes.porEstado.procesando > 0 &&
       alerta(
         "ordenes_pendientes",
-        "Ordenes por preparar o enviar",
+        "Órdenes por preparar o enviar",
         ordenes.porEstado.pagada + ordenes.porEstado.procesando,
-        "Hay compras pagadas que todavia requieren gestion.",
+        "Hay compras pagadas que todavía requieren gestión.",
         "/admin/merch",
         "warning"
       ),
@@ -445,7 +463,7 @@ function construirAlertas({
         "rutas_pausadas",
         "Rutas pausadas por usuarios",
         rutas.pausadas,
-        "Indica recorridos iniciados que todavia no se completaron.",
+        "Indica recorridos iniciados que todavía no se completaron.",
         "/admin/rutas",
         "info"
       ),

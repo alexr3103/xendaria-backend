@@ -91,13 +91,19 @@ function prepararPayloadProducto(producto) {
   };
 }
 
-export async function getProductosMerch() {
-  const productos = await collection().find({ activo: { $ne: false } }).toArray();
+export async function getProductosMerch({ incluirInactivos = false } = {}) {
+  const filtro = incluirInactivos ? {} : { activo: { $ne: false } };
+  const productos = await collection().find(filtro).toArray();
   return productos.map(prepararProducto);
 }
 
-export async function getProductoMerchById(id) {
+export async function getProductoMerchById(id, { incluirInactivos = false } = {}) {
   const producto = await collection().findOne({ _id: new ObjectId(id) });
+
+  if (!incluirInactivos && producto?.activo === false) {
+    return null;
+  }
+
   return prepararProducto(producto);
 }
 
@@ -115,9 +121,13 @@ export async function editarProductoMerch(id, data) {
   );
 }
 
-export async function eliminarProductoMerch(id) {
+export async function actualizarEstadoProductoMerch(id, activo) {
   return collection().updateOne(
     { _id: new ObjectId(id) },
-    { $set: { activo: false } }
+    { $set: { activo: Boolean(activo) } }
   );
+}
+
+export async function eliminarProductoMerch(id) {
+  return collection().deleteOne({ _id: new ObjectId(id) });
 }

@@ -7,8 +7,11 @@ import { validateObjectId } from "../../middleware/objectid.validate.middleware.
 const route = Router();
 
 route.get("/", controllers.getProductosMerch);
+route.get("/admin/todos", verifyToken, requireAdmin, controllers.getProductosMerchAdmin);
+route.get("/admin/:id", verifyToken, requireAdmin, validateObjectId("id"), controllers.getProductoMerchAdminById);
 route.get("/:id", validateObjectId("id"), controllers.getProductoMerchById);
 route.post("/", verifyToken, requireAdmin, validateProductoMerch, controllers.nuevoProductoMerch);
+route.patch("/:id/estado", verifyToken, requireAdmin, validateObjectId("id"), controllers.actualizarEstadoProductoMerch);
 route.patch("/:id", verifyToken, requireAdmin, validateObjectId("id"), controllers.editarProductoMerch);
 route.delete("/:id", verifyToken, requireAdmin, validateObjectId("id"), controllers.eliminarProductoMerch);
 
