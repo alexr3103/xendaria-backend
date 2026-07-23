@@ -15,6 +15,7 @@ import {
 } from "./services/visitas.service.js";
 import { asegurarIndiceCalificaciones } from "./services/calificaciones.service.js";
 import { asegurarIndicesRutas } from "./services/rutas_recomendadas.service.js";
+import { asegurarIndicesTitulos } from "./services/titulos.service.js";
 import { initSocket } from "./services/socket.service.js";
 import PuntosApiRouter from "./api/routes/routes.api.puntos_visitables.js";
 import UsuariosApiRouter from "./api/routes/routes.api.usuarios.js";
@@ -28,6 +29,7 @@ import RankingApiRouter from "./api/routes/routes.api.ranking.js";
 import CalificacionesApiRouter from "./api/routes/routes.api.calificaciones.js";
 import RutasApiRouter from "./api/routes/routes.api.rutas_recomendadas.js";
 import DashboardApiRouter from "./api/routes/routes.api.dashboard.js";
+import TitulosApiRouter from "./api/routes/routes.api.titulos.js";
 import PuntosRouter from "./routes/puntos_visitables.route.js";
 import UsuariosRouter from "./routes/usuarios.route.js";
 import cors from "cors";
@@ -57,6 +59,7 @@ await asegurarIndiceVisitas();
 await sincronizarVisitasDesdeUsuarios();
 await asegurarIndiceCalificaciones();
 await asegurarIndicesRutas();
+await asegurarIndicesTitulos();
 
 // Rutas
 app.use("/api/puntos", PuntosApiRouter);
@@ -71,6 +74,7 @@ app.use("/api/ranking", RankingApiRouter);
 app.use("/api/calificaciones", CalificacionesApiRouter);
 app.use("/api/rutas", RutasApiRouter);
 app.use("/api/admin", DashboardApiRouter);
+app.use("/api/titulos", TitulosApiRouter);
 app.use("/puntos", PuntosRouter);
 app.use("/usuarios", UsuariosRouter);
 //app.get("/api/health", (_req, res) => {

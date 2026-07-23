@@ -3,9 +3,6 @@ import * as ordenService from "../../services/orden.service.js";
 
 export async function recibirWebhook(req, res) {
   try {
-    console.log("[MercadoPago webhook] query:", req.query);
-    console.log("[MercadoPago webhook] body:", req.body);
-
     const idPago = req.query["data.id"] || req.body?.data?.id;
 
     if (!idPago) {
@@ -17,15 +14,28 @@ export async function recibirWebhook(req, res) {
 
     const pago = await mercadopagoService.obtenerPagoPorId(idPago);
 
-    console.log("[MercadoPago webhook] pago consultado:", pago);
-
     const ordenActualizada = await ordenService.actualizarOrdenDesdePagoMercadoPago(pago);
-
-    console.log("[MercadoPago webhook] orden actualizada:", ordenActualizada?._id || null);
 
     return res.status(200).json({ ok: true });
   } catch (error) {
     console.error("[recibirWebhook]", error);
     return res.status(500).json({ message: "No se pudo procesar el webhook de Mercado Pago" });
+  }
+}
+
+export function redirigirRetornoPago(req, res) {
+  try {
+    const urlRetorno = mercadopagoService.construirUrlRetornoFrontend(
+      req.params.tipo,
+      req.query
+    );
+
+    return res.redirect(303, urlRetorno);
+  } catch (error) {
+    console.error("[redirigirRetornoPago]", error);
+    return res.redirect(
+      303,
+      mercadopagoService.construirUrlRetornoFrontend("error")
+    );
   }
 }

@@ -242,14 +242,14 @@ export async function editarPunto(req, res) {
     if (data.nombre !== undefined && data.lat === undefined && data.lon === undefined) {
       puntoActual = await service.getPuntosById(id, { incluirInactivos: true });
       if (!puntoActual) {
-        return res.status(404).json({ message: "No se encontrÃƒÂ³ el punto" });
+        return res.status(404).json({ message: "No se encontro el punto" });
       }
     }
 
     if (data.lat !== undefined || data.lon !== undefined) {
       puntoActual = await service.getPuntosById(id, { incluirInactivos: true });
       if (!puntoActual) {
-        return res.status(404).json({ message: "No se encontrÃ³ el punto" });
+        return res.status(404).json({ message: "No se encontro el punto" });
       }
 
       const lat = data.lat !== undefined ? data.lat : puntoActual.lat;

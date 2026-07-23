@@ -136,7 +136,6 @@ export async function recuperarCuenta(email) {
       `,
     });
 
-    console.log("Mail de recuperacion enviado");
   } catch (error) {
     console.error("No se pudo enviar el mail de recuperacion", error);
   }
@@ -256,7 +255,6 @@ export async function enviarConfirmacionCompra(destinatario, orden) {
       `,
     });
 
-    console.log("Mail de confirmacion enviado");
   } catch (error) {
     console.error("No se pudo enviar el mail de confirmacion", error);
   }

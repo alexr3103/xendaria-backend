@@ -10,10 +10,43 @@ import { emitRankingUpdated } from "../../services/socket.service.js";
 
 
 const clientGoogle = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);//login con google
-const CONFIGURACION_DEFAULT = {
-  perfilPublico: true,
-  mostrarFavoritosPerfil: true,
-};
+const CONFIGURACION_DEFAULT = serviceUsuarios.CONFIGURACION_USUARIO_DEFAULT;
+const DESCRIPCION_USUARIO_MAX_LENGTH = 150;
+const TOKEN_EXPIRATION_USER = "15d";
+const TOKEN_EXPIRATION_ADMIN = "8h";
+const GOOGLE_OAUTH_DUMMY_PASSWORD = "google_oauth_dummy";
+const PASSWORD_RULES = [
+  {
+    test: (value) => String(value || "").length >= 6,
+    message: "La contraseña debe tener al menos 6 caracteres",
+  },
+  {
+    test: (value) => /[0-9]/.test(String(value || "")),
+    message: "La contraseña debe tener al menos un número",
+  },
+  {
+    test: (value) => /[A-Z]/.test(String(value || "")),
+    message: "La contraseña debe tener al menos una mayúscula",
+  },
+  {
+    test: (value) => /[!@#$%^&*(),.?":{}|<>_\-+=]/.test(String(value || "")),
+    message: "La contraseña debe tener al menos un caracter especial",
+  },
+];
+
+function esFotoGoogle(value = "") {
+  return /googleusercontent\.com|ggpht\.com/i.test(String(value));
+}
+
+function validarPassword(password = "") {
+  const reglaInvalida = PASSWORD_RULES.find((rule) => !rule.test(password));
+  return reglaInvalida?.message || "";
+}
+
+async function esCuentaSoloGoogle(usuario = {}) {
+  if (!usuario.password || !usuario.fotoGoogle) return false;
+  return bcrypt.compare(GOOGLE_OAUTH_DUMMY_PASSWORD, usuario.password);
+}
 
 export async function loginGoogle(req, res) {
   try {
@@ -38,16 +71,31 @@ export async function loginGoogle(req, res) {
         nombre,
         email,
         foto,
-        password: "google_oauth_dummy",
+        fotoGoogle: foto,
+        password: GOOGLE_OAUTH_DUMMY_PASSWORD,
         descripcion: "",
         lugares_favoritos: [],
         puntos_visitados: [],
         insignias: [],
-        configuracion: CONFIGURACION_DEFAULT,
+        seguidores: [],
+        siguiendo: [],
+        configuracion: serviceUsuarios.normalizarConfiguracionUsuario(),
         role: "user"
       };
       const { insertedId } = await serviceUsuarios.guardarUsuario(nuevo);
       usuario = { ...nuevo, _id: insertedId };
+    } else {
+      const dataGoogle = {
+        fotoGoogle: foto,
+      };
+
+      if (!usuario.foto) dataGoogle.foto = foto;
+
+      await serviceUsuarios.editarUsuario(usuario._id.toString(), dataGoogle);
+      usuario = {
+        ...usuario,
+        ...dataGoogle,
+      };
     }
 
     const token = createToken(usuario);
@@ -58,6 +106,10 @@ export async function loginGoogle(req, res) {
         id: usuario._id,
         nombre: usuario.nombre,
         email: usuario.email,
+        foto: usuario.foto || "",
+        fotoGoogle: usuario.fotoGoogle || "",
+        descripcion: usuario.descripcion || "",
+        configuracion: serviceUsuarios.normalizarConfiguracionUsuario(usuario.configuracion),
         role: usuario.role,
         token
       }
@@ -82,7 +134,13 @@ function createToken(usuario) {
     email: usuario.email,
     role: usuario.role
   };
-  return jwt.sign(payload, secret, { expiresIn: "2h" });
+
+  const expiresIn =
+    String(usuario.role || "").toLowerCase() === "admin"
+      ? TOKEN_EXPIRATION_ADMIN
+      : TOKEN_EXPIRATION_USER;
+
+  return jwt.sign(payload, secret, { expiresIn });
 }
 
 //Traer todos los usuarios
@@ -112,7 +170,7 @@ export async function getUsuariosById(req, res) {
     const id = req.params.id;
     const usuario = await serviceUsuarios.getUsuariosById(id);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
-    res.status(200).json(usuario);
+    res.status(200).json(prepararUsuarioParaRespuesta(usuario, req, id));
   } catch (e) {
     console.error("[getUsuariosById]", e);
     res.status(500).json({ message: "Error al obtener usuario" });
@@ -139,11 +197,13 @@ export async function nuevoUsuario(req, res) {
       email,
       password,
       foto: foto || "",
-      descripcion: descripcion || "",
+      descripcion: normalizarDescripcionUsuario(descripcion) || "",
       lugares_favoritos: lugares_favoritos || [],
       puntos_visitados: [],
       insignias: [],
-      configuracion: CONFIGURACION_DEFAULT,
+      seguidores: [],
+      siguiendo: [],
+      configuracion: serviceUsuarios.normalizarConfiguracionUsuario(),
       role: "user"
     };
 
@@ -193,12 +253,24 @@ export async function editarUsuario(req, res) {
       return res.status(403).json({ message: "No podes editar otro usuario" });
     }
 
+    const usuarioActual = await serviceUsuarios.getUsuariosById(id);
+    if (!usuarioActual) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
     const data = limpiarCamposVacios({
       nombre: req.body.nombre,
       foto: req.body.foto,
-      descripcion: req.body.descripcion,
-      configuracion: req.body.configuracion,
+      fotoGoogle: esFotoGoogle(req.body.fotoGoogle) ? req.body.fotoGoogle : undefined,
+      descripcion: normalizarDescripcionUsuario(req.body.descripcion),
     });
+
+    if (req.body.configuracion !== undefined) {
+      data.configuracion = serviceUsuarios.normalizarConfiguracionUsuario(
+        req.body.configuracion,
+        usuarioActual.configuracion
+      );
+    }
 
     if (req.user?.role === "admin") {
       if (req.body.role !== undefined) data.role = req.body.role;
@@ -209,11 +281,7 @@ export async function editarUsuario(req, res) {
       return res.status(400).json({ message: "No hay datos para editar" });
     }
 
-    const resultado = await serviceUsuarios.editarUsuario(id, data);
-    if (!resultado?.matchedCount) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-
+    await serviceUsuarios.editarUsuario(id, data);
     const usuarioActualizado = await serviceUsuarios.getUsuariosById(id);
     const { password, ...usuarioSeguro } = usuarioActualizado;
 
@@ -224,6 +292,149 @@ export async function editarUsuario(req, res) {
   } catch (err) {
     console.error("[editarUsuario]", err);
     res.status(500).json({ message: "No se editó el usuario" });
+  }
+}
+
+export async function cambiarPasswordUsuario(req, res) {
+  try {
+    const id = req.params.id;
+
+    if (!usuarioPuedeGestionar(req, id)) {
+      return res.status(403).json({ message: "No podes cambiar la contraseña de otro usuario" });
+    }
+
+    const { passwordActual, passwordNueva, passwordConfirm } = req.body;
+
+    if (!passwordActual || !passwordNueva || !passwordConfirm) {
+      return res.status(400).json({ message: "Completá todos los campos de contraseña" });
+    }
+
+    if (passwordNueva !== passwordConfirm) {
+      return res.status(400).json({ message: "Las contraseñas nuevas deben coincidir" });
+    }
+
+    const errorPassword = validarPassword(passwordNueva);
+    if (errorPassword) {
+      return res.status(400).json({ message: errorPassword });
+    }
+
+    const usuario = await serviceUsuarios.getUsuarioAuthById(id);
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    if (!usuario.password || (await esCuentaSoloGoogle(usuario))) {
+      return res.status(400).json({
+        message: "Esta cuenta usa Google para iniciar sesión. No tiene una contraseña de Xendaria para cambiar.",
+      });
+    }
+
+    const actualValida = await bcrypt.compare(
+      String(passwordActual).trim(),
+      usuario.password
+    );
+
+    if (!actualValida) {
+      return res.status(401).json({ message: "La contraseña actual no es correcta" });
+    }
+
+    const repitePassword = await bcrypt.compare(
+      String(passwordNueva).trim(),
+      usuario.password
+    );
+
+    if (repitePassword) {
+      return res.status(400).json({ message: "La contraseña nueva debe ser distinta a la actual" });
+    }
+
+    await serviceUsuarios.editarUsuario(id, {
+      password: await bcrypt.hash(String(passwordNueva).trim(), 10),
+    });
+
+    return res.status(200).json({ message: "Contraseña actualizada correctamente" });
+  } catch (err) {
+    console.error("[cambiarPasswordUsuario]", err);
+    return res.status(500).json({ message: "No se pudo cambiar la contraseña" });
+  }
+}
+
+export async function buscarUsuariosComunidad(req, res) {
+  try {
+    const usuarios = await serviceUsuarios.buscarUsuariosComunidad(
+      {
+        nombreContiene: req.query.q || req.query.nombreContiene || "",
+        limit: req.query.limit,
+      },
+      req.user.id
+    );
+
+    if (!usuarios) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    return res.status(200).json(usuarios);
+  } catch (err) {
+    console.error("[buscarUsuariosComunidad]", err);
+    return res.status(500).json({ message: "No se pudo buscar usuarios" });
+  }
+}
+
+export async function getComunidadUsuario(req, res) {
+  try {
+    const comunidad = await serviceUsuarios.getComunidadUsuario(req.user.id);
+
+    if (!comunidad) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    return res.status(200).json(comunidad);
+  } catch (err) {
+    console.error("[getComunidadUsuario]", err);
+    return res.status(500).json({ message: "No se pudo obtener tu comunidad" });
+  }
+}
+
+export async function seguirUsuario(req, res) {
+  try {
+    const usuario = await serviceUsuarios.seguirUsuario(
+      req.user.id,
+      req.params.idObjetivo
+    );
+
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    return res.status(200).json({
+      message: "Usuario agregado a tu comunidad",
+      usuario,
+    });
+  } catch (err) {
+    console.error("[seguirUsuario]", err);
+    return res
+      .status(err.status || 500)
+      .json({ message: err.message || "No se pudo seguir al usuario" });
+  }
+}
+
+export async function dejarDeSeguirUsuario(req, res) {
+  try {
+    const usuario = await serviceUsuarios.dejarDeSeguirUsuario(
+      req.user.id,
+      req.params.idObjetivo
+    );
+
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    return res.status(200).json({
+      message: "Usuario quitado de tu comunidad",
+      usuario,
+    });
+  } catch (err) {
+    console.error("[dejarDeSeguirUsuario]", err);
+    return res.status(500).json({ message: "No se pudo dejar de seguir al usuario" });
   }
 }
 
@@ -276,6 +487,10 @@ export async function login(req, res) {
         id: usuario._id,
         nombre: usuario.nombre,
         email: usuario.email,
+        foto: usuario.foto || "",
+        fotoGoogle: usuario.fotoGoogle || "",
+        descripcion: usuario.descripcion || "",
+        configuracion: serviceUsuarios.normalizarConfiguracionUsuario(usuario.configuracion),
         role: usuario.role,
         token
       }
@@ -289,7 +504,6 @@ export async function login(req, res) {
 
 // Recuperar cuenta
 export function recuperarCuenta(req, res) {
-  console.log("Email: ", req.body)
   const email = req.body.email
   emailService.recuperarCuenta(email)
   res.status(200).json({ message: "ok" })
@@ -307,6 +521,69 @@ function usuarioPuedeGestionar(req, idUsuario) {
   return String(req.user?.id) === String(idUsuario);
 }
 
+function usuarioPuedeVerDatosPrivados(req, idUsuario) {
+  return usuarioPuedeGestionar(req, idUsuario) || req.user?.role === "admin";
+}
+
+function prepararUsuarioParaRespuesta(usuario, req, idUsuario) {
+  const { password, ...usuarioSeguro } = usuario;
+  const configuracion = serviceUsuarios.normalizarConfiguracionUsuario(
+    usuario.configuracion
+  );
+
+  const respuesta = {
+    ...usuarioSeguro,
+    configuracion,
+    seguidoresCount: Array.isArray(usuario.seguidores)
+      ? usuario.seguidores.length
+      : 0,
+    siguiendoCount: Array.isArray(usuario.siguiendo)
+      ? usuario.siguiendo.length
+      : 0,
+  };
+
+  if (usuarioPuedeVerDatosPrivados(req, idUsuario)) {
+    return respuesta;
+  }
+
+  delete respuesta.email;
+  delete respuesta.role;
+  delete respuesta.seguidores;
+  delete respuesta.siguiendo;
+
+  if (!configuracion.perfilPublico) {
+    delete respuesta.descripcion;
+    delete respuesta.lugares_favoritos;
+    delete respuesta.puntos_visitados;
+    delete respuesta.insignias;
+    respuesta.configuracion = {
+      perfilPublico: false,
+    };
+    return respuesta;
+  }
+
+  if (!configuracion.mostrarFavoritosPerfil) {
+    delete respuesta.lugares_favoritos;
+  }
+
+  if (!configuracion.mostrarPuntosVisitadosPerfil) {
+    delete respuesta.puntos_visitados;
+  }
+
+  if (!configuracion.mostrarInsigniasPerfil) {
+    delete respuesta.insignias;
+  }
+
+  if (!configuracion.mostrarPreferenciaLugaresPerfil) {
+    respuesta.configuracion = {
+      ...configuracion,
+      categoriaFavorita: "",
+    };
+  }
+
+  return respuesta;
+}
+
 function favoritosVisiblesPara(usuario, req, idUsuario) {
   if (usuarioPuedeGestionar(req, idUsuario)) return true;
 
@@ -321,10 +598,39 @@ function favoritosVisiblesPara(usuario, req, idUsuario) {
   );
 }
 
+function albumInsigniasVisiblePara(usuario, req, idUsuario) {
+  if (usuarioPuedeGestionar(req, idUsuario)) return true;
+
+  const configuracion = serviceUsuarios.normalizarConfiguracionUsuario(
+    usuario.configuracion
+  );
+
+  return Boolean(
+    configuracion.perfilPublico &&
+    configuracion.mostrarAlbumInsigniasPerfil
+  );
+}
+
+function puntosVisitadosVisiblesPara(usuario, req, idUsuario) {
+  if (usuarioPuedeGestionar(req, idUsuario)) return true;
+
+  const configuracion = serviceUsuarios.normalizarConfiguracionUsuario(usuario.configuracion);
+
+  return Boolean(
+    configuracion.perfilPublico &&
+    configuracion.mostrarPuntosVisitadosPerfil
+  );
+}
+
 function limpiarCamposVacios(objeto) {
   return Object.fromEntries(
     Object.entries(objeto).filter(([, value]) => value !== undefined)
   );
+}
+
+function normalizarDescripcionUsuario(descripcion) {
+  if (descripcion === undefined) return undefined;
+  return String(descripcion).trim().slice(0, DESCRIPCION_USUARIO_MAX_LENGTH);
 }
 
 function normalizarCoordenadasPuntoPropio(lat, lon) {
@@ -566,14 +872,37 @@ export async function getFavoritosUsuario(req, res) {
   }
 }
 
+export async function getAlbumInsigniasUsuario(req, res) {
+  const idUsuario = req.params.idUsuario;
+
+  try {
+    const usuario = await serviceUsuarios.getUsuariosById(idUsuario);
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
+
+    if (!albumInsigniasVisiblePara(usuario, req, idUsuario)) {
+      return res.status(403).json({ message: "El álbum de insignias de este perfil es privado" });
+    }
+
+    const album = await serviceUsuarios.getAlbumInsigniasUsuario(idUsuario);
+
+    res.status(200).json(album);
+  } catch (err) {
+    console.error("[getAlbumInsigniasUsuario]", err);
+    res.status(500).json({ message: "Error al obtener álbum de insignias" });
+  }
+}
+
 export async function getPuntosVisitadosUsuario(req, res) {
   const idUsuario = req.params.idUsuario;
 
-  if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes ver visitas de otro usuario" });
-  }
-
   try {
+    const usuario = await serviceUsuarios.getUsuariosById(idUsuario);
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
+
+    if (!puntosVisitadosVisiblesPara(usuario, req, idUsuario)) {
+      return res.status(403).json({ message: "Los puntos visitados de este perfil son privados" });
+    }
+
     const visitados = await serviceUsuarios.getPuntosVisitadosUsuario(idUsuario);
     if (!visitados) return res.status(404).json({ message: "Usuario no encontrado" });
 
@@ -581,6 +910,32 @@ export async function getPuntosVisitadosUsuario(req, res) {
   } catch (err) {
     console.error("[getPuntosVisitadosUsuario]", err);
     return res.status(500).json({ message: "Error al obtener puntos visitados" });
+  }
+}
+
+export async function borrarHistorialVisitas(req, res) {
+  const idUsuario = req.params.idUsuario;
+
+  if (!usuarioPuedeGestionar(req, idUsuario)) {
+    return res.status(403).json({ message: "No podes borrar visitas de otro usuario" });
+  }
+
+  try {
+    const resultado = await serviceUsuarios.borrarHistorialVisitas(idUsuario);
+    if (!resultado) return res.status(404).json({ message: "Usuario no encontrado" });
+
+    emitRankingUpdated({
+      reason: "visit-history-deleted",
+      idUsuario,
+    });
+
+    return res.status(200).json({
+      message: "Historial de visitas borrado correctamente",
+      visitasEliminadas: resultado.visitasEliminadas,
+    });
+  } catch (err) {
+    console.error("[borrarHistorialVisitas]", err);
+    return res.status(500).json({ message: "Error al borrar historial de visitas" });
   }
 }
 

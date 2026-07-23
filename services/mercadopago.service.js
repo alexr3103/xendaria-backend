@@ -14,36 +14,73 @@ function getMercadoPagoClient() {
 }
 
 function normalizarUrl(url) {
-  return (url || "").trim().replace(/\/$/, "");
+  const limpia = (url || "").trim().replace(/\/$/, "");
+  if (!limpia) return "";
+  if (/^https?:\/\//i.test(limpia)) return limpia;
+  if (/^(localhost|127\.0\.0\.1)(:\d+)?/i.test(limpia)) {
+    return `http://${limpia}`;
+  }
+  return `https://${limpia}`;
 }
 
 function getFrontendUrl() {
   return normalizarUrl(process.env.FRONTEND_URL) || "http://localhost:5173";
 }
 
+function getBackendUrl() {
+  return normalizarUrl(process.env.BACKEND_URL);
+}
+
+function esUrlPublica(url) {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "https:" &&
+      !["localhost", "127.0.0.1"].includes(parsed.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getUrlRetornoConfigurada(nombreEnv, fallbackUrl, usarRetornoBackend) {
+  if (usarRetornoBackend) return fallbackUrl;
+
+  const configurada = normalizarUrl(process.env[nombreEnv]);
+  if (!configurada) return fallbackUrl;
+
+  return configurada;
+}
+
 function getBackUrls() {
   const frontendUrl = getFrontendUrl();
+  const backendUrl = getBackendUrl();
+  const usarRetornoBackend = esUrlPublica(backendUrl);
+  const baseRetorno = usarRetornoBackend
+    ? `${backendUrl}/api/mercadopago/retorno`
+    : frontendUrl;
 
   return {
-    success:
-      normalizarUrl(process.env.MP_SUCCESS_URL) ||
-      `${frontendUrl}/checkout/exito`,
-    pending:
-      normalizarUrl(process.env.MP_PENDING_URL) ||
-      `${frontendUrl}/checkout/pendiente`,
-    failure:
-      normalizarUrl(process.env.MP_FAILURE_URL) ||
-      `${frontendUrl}/checkout/error`,
+    success: getUrlRetornoConfigurada(
+      "MP_SUCCESS_URL",
+      `${baseRetorno}${usarRetornoBackend ? "/exito" : "/checkout/exito"}`,
+      usarRetornoBackend
+    ),
+    pending: getUrlRetornoConfigurada(
+      "MP_PENDING_URL",
+      `${baseRetorno}${usarRetornoBackend ? "/pendiente" : "/checkout/pendiente"}`,
+      usarRetornoBackend
+    ),
+    failure: getUrlRetornoConfigurada(
+      "MP_FAILURE_URL",
+      `${baseRetorno}${usarRetornoBackend ? "/error" : "/checkout/error"}`,
+      usarRetornoBackend
+    ),
   };
 }
 
 function puedeUsarAutoReturn(successUrl) {
-  try {
-    const url = new URL(successUrl);
-    return url.protocol === "https:" && !["localhost", "127.0.0.1"].includes(url.hostname);
-  } catch {
-    return false;
-  }
+  return esUrlPublica(successUrl);
 }
 
 export async function crearPreferenciaPago(orden) {
@@ -83,7 +120,7 @@ export async function crearPreferenciaPago(orden) {
     body.auto_return = "approved";
   }
 
-  if (backendUrl) {
+  if (esUrlPublica(backendUrl)) {
     body.notification_url = `${backendUrl}/api/mercadopago/webhook`;
   }
 
@@ -94,6 +131,38 @@ export async function crearPreferenciaPago(orden) {
     init_point: respuesta.init_point,
     sandbox_init_point: respuesta.sandbox_init_point,
   };
+}
+
+export function construirUrlRetornoFrontend(tipo, query = {}) {
+  const rutas = {
+    exito: "/checkout/exito",
+    success: "/checkout/exito",
+    aprobado: "/checkout/exito",
+    pendiente: "/checkout/pendiente",
+    pending: "/checkout/pendiente",
+    error: "/checkout/error",
+    fallo: "/checkout/error",
+    fallido: "/checkout/error",
+    failure: "/checkout/error",
+  };
+  const url = new URL(`${getFrontendUrl()}${rutas[tipo] || rutas.error}`);
+
+  Object.entries(query || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item !== undefined && item !== null) {
+          url.searchParams.append(key, String(item));
+        }
+      });
+      return;
+    }
+
+    url.searchParams.set(key, String(value));
+  });
+
+  return url.toString();
 }
 
 export async function obtenerPagoPorId(idPago) {

@@ -29,6 +29,7 @@ export const registerSchema = yup.object({
 
   descripcion: yup
     .string()
+    .max(150, "La descripción no puede superar los 150 caracteres")
     .optional(),
 
   lugares_favoritos: yup

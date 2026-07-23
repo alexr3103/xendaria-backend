@@ -1,7 +1,6 @@
 import { puntoSchema } from "../schemas/puntos_visitables.js"
 
 export function validatePunto(req, res, next){
-    console.log("Validando....")
     puntoSchema.validate(req.body,
             {
                 abortEarly:false,       //se detiene en el primer error

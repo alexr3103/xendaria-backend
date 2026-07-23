@@ -10,6 +10,41 @@ function collection() {
   return db.collection("usuarios");
 }
 
+export const CONFIGURACION_USUARIO_DEFAULT = {
+  perfilPublico: true,
+  mostrarFavoritosPerfil: true,
+  mostrarInsigniasPerfil: true,
+  mostrarAlbumInsigniasPerfil: true,
+  mostrarContadorVisitados: true,
+  mostrarPuntosVisitadosPerfil: true,
+  mostrarPreferenciaLugaresPerfil: true,
+  mostrarActividadRanking: true,
+  permitirUbicacion: true,
+  vista360Habilitada: true,
+  categoriaFavorita: "",
+  notificaciones: {
+    puntosCercanos: true,
+    insignias: true,
+    recompensas: true,
+  },
+};
+
+export function normalizarConfiguracionUsuario(configuracion = {}, configuracionActual = {}) {
+  const config = configuracion || {};
+  const actual = configuracionActual || {};
+
+  return {
+    ...CONFIGURACION_USUARIO_DEFAULT,
+    ...actual,
+    ...config,
+    notificaciones: {
+      ...CONFIGURACION_USUARIO_DEFAULT.notificaciones,
+      ...(actual.notificaciones || {}),
+      ...(config.notificaciones || {}),
+    },
+  };
+}
+
 // Filtros flexibles
 function _escapeRegex(s = "") {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -51,6 +86,44 @@ function buildFuzzyRegexes(text = "") {
   return regs;
 }
 
+function normalizarIdUsuario(valor) {
+  if (!valor) return null;
+  if (valor instanceof ObjectId) return valor.toString();
+  if (typeof valor === "string") return valor;
+  if (valor._id instanceof ObjectId) return valor._id.toString();
+  if (typeof valor._id === "string") return valor._id;
+  return null;
+}
+
+function normalizarListaIdsUsuarios(lista = []) {
+  return lista
+    .map(normalizarIdUsuario)
+    .filter((id) => id && ObjectId.isValid(id));
+}
+
+function serializarUsuarioComunidad(usuario, usuarioActual = null) {
+  const config = normalizarConfiguracionUsuario(usuario.configuracion);
+  const siguiendoActual = new Set(
+    normalizarListaIdsUsuarios(usuarioActual?.siguiendo || [])
+  );
+  const seguidoresActual = new Set(
+    normalizarListaIdsUsuarios(usuarioActual?.seguidores || [])
+  );
+  const id = usuario._id.toString();
+
+  return {
+    _id: id,
+    nombre: usuario.nombre || "Usuario",
+    foto: usuario.foto || "",
+    descripcion: config.perfilPublico ? usuario.descripcion || "" : "",
+    perfilPublico: config.perfilPublico,
+    seguidoresCount: normalizarListaIdsUsuarios(usuario.seguidores || []).length,
+    siguiendoCount: normalizarListaIdsUsuarios(usuario.siguiendo || []).length,
+    loSigo: siguiendoActual.has(id),
+    meSigue: seguidoresActual.has(id),
+  };
+}
+
 export async function getUsuarios(filter = {}) {
   const condiciones = [];
 
@@ -79,15 +152,47 @@ export async function getUsuarios(filter = {}) {
       ? condiciones[0]
       : { $and: condiciones };
 
-  return collection().find(filterMongo).toArray();
+  const usuarios = await collection().find(filterMongo).toArray();
+  return usuarios.map((usuario) => {
+    const { password, ...usuarioSeguro } = usuario;
+
+    return {
+      ...usuarioSeguro,
+      configuracion: normalizarConfiguracionUsuario(usuario.configuracion),
+    };
+  });
 }
 
 export async function getUsuariosById(id) {
-  return collection().findOne({ _id: new ObjectId(id) });
+  const usuario = await collection().findOne({ _id: new ObjectId(id) });
+  if (!usuario) return null;
+
+  const { password, ...usuarioSeguro } = usuario;
+
+  return {
+    ...usuarioSeguro,
+    configuracion: normalizarConfiguracionUsuario(usuario.configuracion),
+  };
 }
 
 export async function getUsuarioByEmail(email) {
-  return collection().findOne({ email });
+  const usuario = await collection().findOne({ email });
+  if (!usuario) return null;
+
+  return {
+    ...usuario,
+    configuracion: normalizarConfiguracionUsuario(usuario.configuracion),
+  };
+}
+
+export async function getUsuarioAuthById(id) {
+  const usuario = await collection().findOne({ _id: new ObjectId(id) });
+  if (!usuario) return null;
+
+  return {
+    ...usuario,
+    configuracion: normalizarConfiguracionUsuario(usuario.configuracion),
+  };
 }
 
 export async function guardarUsuario(usuario) {
@@ -110,6 +215,15 @@ export async function eliminarUsuario(id) {
   }
 
   const puntosResult = await servicePuntos.eliminarPuntosPropiosPorUsuario(id);
+  await collection().updateMany(
+    {},
+    {
+      $pull: {
+        siguiendo: usuarioId,
+        seguidores: usuarioId,
+      },
+    }
+  );
   const usuarioResult = await collection().deleteOne({ _id: usuarioId });
 
   return {
@@ -120,6 +234,144 @@ export async function eliminarUsuario(id) {
 
 export async function editarUsuario(id, usuario) {
   return collection().updateOne({ _id: new ObjectId(id) }, { $set: usuario });
+}
+
+export async function buscarUsuariosComunidad(filter = {}, idUsuarioActual) {
+  const usuarioActual = await collection().findOne({
+    _id: new ObjectId(idUsuarioActual),
+  });
+  if (!usuarioActual) return null;
+
+  const condiciones = [
+    { _id: { $ne: new ObjectId(idUsuarioActual) } },
+    { "configuracion.perfilPublico": { $ne: false } },
+  ];
+
+  if (filter.nombreContiene) {
+    const regs = buildFuzzyRegexes(String(filter.nombreContiene));
+    condiciones.push({
+      $or: regs.map((rx) => ({ nombre: rx })),
+    });
+  }
+
+  const limit = Math.min(Math.max(Number(filter.limit) || 20, 1), 30);
+
+  const usuarios = await collection()
+    .find(
+      { $and: condiciones },
+      {
+        projection: {
+          password: 0,
+          email: 0,
+          role: 0,
+        },
+      }
+    )
+    .sort({ nombre: 1, createdAt: -1 })
+    .limit(limit)
+    .toArray();
+
+  return usuarios.map((usuario) => serializarUsuarioComunidad(usuario, usuarioActual));
+}
+
+export async function getComunidadUsuario(idUsuario) {
+  const usuario = await collection().findOne({ _id: new ObjectId(idUsuario) });
+  if (!usuario) return null;
+
+  const siguiendoIds = normalizarListaIdsUsuarios(usuario.siguiendo || []);
+  const seguidoresIds = normalizarListaIdsUsuarios(usuario.seguidores || []);
+  const ids = [...new Set([...siguiendoIds, ...seguidoresIds])];
+  const usuarios = ids.length
+    ? await collection()
+        .find(
+          { _id: { $in: ids.map((id) => new ObjectId(id)) } },
+          {
+            projection: {
+              password: 0,
+              email: 0,
+              role: 0,
+            },
+          }
+        )
+        .toArray()
+    : [];
+  const usuariosPorId = new Map(
+    usuarios.map((item) => [item._id.toString(), item])
+  );
+
+  return {
+    seguidoresCount: seguidoresIds.length,
+    siguiendoCount: siguiendoIds.length,
+    siguiendo: siguiendoIds
+      .map((id) => usuariosPorId.get(id))
+      .filter(Boolean)
+      .map((item) => serializarUsuarioComunidad(item, usuario)),
+    seguidores: seguidoresIds
+      .map((id) => usuariosPorId.get(id))
+      .filter(Boolean)
+      .map((item) => serializarUsuarioComunidad(item, usuario)),
+  };
+}
+
+export async function seguirUsuario(idUsuario, idObjetivo) {
+  const usuarioId = new ObjectId(idUsuario);
+  const objetivoId = new ObjectId(idObjetivo);
+
+  if (usuarioId.equals(objetivoId)) {
+    const error = new Error("No podes seguirte a vos mismo");
+    error.status = 400;
+    throw error;
+  }
+
+  const [usuario, objetivo] = await Promise.all([
+    collection().findOne({ _id: usuarioId }),
+    collection().findOne({ _id: objetivoId }),
+  ]);
+
+  if (!usuario || !objetivo) return null;
+
+  const configObjetivo = normalizarConfiguracionUsuario(objetivo.configuracion);
+  if (!configObjetivo.perfilPublico) {
+    const error = new Error("Este perfil es privado");
+    error.status = 403;
+    throw error;
+  }
+
+  await Promise.all([
+    collection().updateOne(
+      { _id: usuarioId },
+      { $addToSet: { siguiendo: objetivoId } }
+    ),
+    collection().updateOne(
+      { _id: objetivoId },
+      { $addToSet: { seguidores: usuarioId } }
+    ),
+  ]);
+
+  const usuarioActualizado = await collection().findOne({ _id: usuarioId });
+  const objetivoActualizado = await collection().findOne({ _id: objetivoId });
+  return serializarUsuarioComunidad(objetivoActualizado, usuarioActualizado);
+}
+
+export async function dejarDeSeguirUsuario(idUsuario, idObjetivo) {
+  const usuarioId = new ObjectId(idUsuario);
+  const objetivoId = new ObjectId(idObjetivo);
+
+  await Promise.all([
+    collection().updateOne(
+      { _id: usuarioId },
+      { $pull: { siguiendo: objetivoId } }
+    ),
+    collection().updateOne(
+      { _id: objetivoId },
+      { $pull: { seguidores: usuarioId } }
+    ),
+  ]);
+
+  const usuarioActualizado = await collection().findOne({ _id: usuarioId });
+  const objetivoActualizado = await collection().findOne({ _id: objetivoId });
+  if (!objetivoActualizado) return null;
+  return serializarUsuarioComunidad(objetivoActualizado, usuarioActualizado);
 }
 
 export async function updatePassword(token, password) {
@@ -252,6 +504,22 @@ export async function eliminarFavorito(idUsuario, idPunto) {
   return favoritosObjectId;
 }
 
+export async function borrarHistorialVisitas(idUsuario) {
+  const usuario = await getUsuariosById(idUsuario);
+  if (!usuario) return null;
+
+  const resultadoVisitas = await serviceVisitas.borrarVisitasUsuario(idUsuario);
+
+  await collection().updateOne(
+    { _id: new ObjectId(idUsuario) },
+    { $set: { puntos_visitados: [] } }
+  );
+
+  return {
+    visitasEliminadas: resultadoVisitas.deletedCount || 0,
+  };
+}
+
 export async function getFavoritosUsuario(idUsuario) {
   const usuario = await getUsuariosById(idUsuario);
   if (!usuario) return null;
@@ -266,6 +534,49 @@ export async function getFavoritosUsuario(idUsuario) {
   return favoritos
     .map((id) => puntosPorId.get(id))
     .filter(Boolean);
+}
+
+function getInsigniaUrlPunto(punto = {}) {
+  if (typeof punto.insignia === "string") return punto.insignia;
+  return punto.insignia?.url || punto.insignia?.imagen || punto.insignia?.foto || "";
+}
+
+export async function getAlbumInsigniasUsuario(idUsuario) {
+  const usuario = await getUsuariosById(idUsuario);
+  if (!usuario) return null;
+
+  const insigniasUsuario = normalizarListaInsignias(usuario.insignias);
+  const insigniasPorPunto = new Map(
+    insigniasUsuario.map((insignia) => [insignia.idPunto.toString(), insignia])
+  );
+
+  const puntosConInsignia = (await servicePuntos.getPuntos())
+    .filter((punto) => getInsigniaUrlPunto(punto))
+    .sort((a, b) => String(a.nombre || "").localeCompare(String(b.nombre || "")));
+
+  const insignias = puntosConInsignia.map((punto) => {
+    const idPunto = punto._id.toString();
+    const obtenida = insigniasPorPunto.get(idPunto);
+
+    return {
+      idPunto,
+      nombre: punto.nombre || obtenida?.titulo || "Insignia",
+      direccion: punto.direccion || "",
+      imagen: getInsigniaUrlPunto(punto) || obtenida?.url || "",
+      desbloqueada: Boolean(obtenida),
+      fechaObtencion: obtenida?.fechaObtencion || null,
+    };
+  });
+
+  const desbloqueadas = insignias.filter((insignia) => insignia.desbloqueada).length;
+
+  return {
+    usuarioId: idUsuario,
+    total: insignias.length,
+    desbloqueadas,
+    pendientes: Math.max(insignias.length - desbloqueadas, 0),
+    insignias,
+  };
 }
 
 export async function registrarPuntoVisitado(idUsuario, idPunto) {

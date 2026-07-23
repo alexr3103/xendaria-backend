@@ -162,6 +162,10 @@ export async function getPuntosVisitadosPorUsuario(idUsuario) {
     .filter(Boolean);
 }
 
+export async function borrarVisitasUsuario(idUsuario) {
+  return collection().deleteMany({ idUsuario: new ObjectId(idUsuario) });
+}
+
 export function puedeAparecerEnRanking(usuario) {
   return usuarioParticipaEnRanking(usuario);
 }
