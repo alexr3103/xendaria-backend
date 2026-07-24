@@ -83,6 +83,27 @@ function formatearProvincia(provincia) {
   return provincias[provincia] || provincia || "-";
 }
 
+function escaparHtml(valor) {
+  return String(valor ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function etiquetaBeneficio(tipo) {
+  const etiquetas = {
+    descuento: "Descuento porcentual",
+    cortesia: "Producto o consumición de cortesía",
+    primera_visita: "Beneficio por primera visita",
+    ruta: "Beneficio al completar una ruta",
+    otro: "Otro beneficio",
+  };
+
+  return etiquetas[tipo] || tipo;
+}
+
 export async function recuperarCuenta(email) {
   try {
     const secret = getResetSecret();
@@ -258,4 +279,72 @@ export async function enviarConfirmacionCompra(destinatario, orden) {
   } catch (error) {
     console.error("No se pudo enviar el mail de confirmacion", error);
   }
+}
+
+export async function enviarSolicitudComercioAdmin(solicitud) {
+  const destinatario =
+    process.env.XENDARIA_CONTACT_EMAIL || "xendariaoficial@gmail.com";
+
+  return getResendClient().emails.send({
+    from: mailFrom,
+    to: destinatario,
+    replyTo: solicitud.email,
+    subject: `Nueva solicitud comercial - ${solicitud.nombreComercio}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #401A37; padding: 24px; max-width: 620px;">
+        <p style="margin: 0 0 6px; color: #AA63E0; font-weight: 700;">Xendaria comercios</p>
+        <h2 style="margin: 0 0 20px;">Nueva solicitud comercial</h2>
+
+        <div style="background: #FDF6F0; border: 1px solid #eadfe7; border-radius: 12px; padding: 18px;">
+          <p><strong>Comercio:</strong> ${escaparHtml(solicitud.nombreComercio)}</p>
+          <p><strong>Plan:</strong> ${escaparHtml(solicitud.plan)}</p>
+          <p><strong>Rubro:</strong> ${escaparHtml(solicitud.rubro)}</p>
+          <p><strong>Dirección:</strong> ${escaparHtml(solicitud.direccion)}</p>
+          <p><strong>Email:</strong> ${escaparHtml(solicitud.email)}</p>
+          <p><strong>Teléfono:</strong> ${escaparHtml(solicitud.telefono)}</p>
+          <p><strong>Instagram o web:</strong> ${escaparHtml(solicitud.redes || "No informado")}</p>
+        </div>
+
+        <h3 style="margin: 24px 0 8px;">Propuesta para usuarios</h3>
+        <p><strong>Tipo:</strong> ${escaparHtml(etiquetaBeneficio(solicitud.tipoBeneficio))}</p>
+        <p style="line-height: 1.6;">${escaparHtml(solicitud.beneficio)}</p>
+
+        <h3 style="margin: 24px 0 8px;">Contenido opcional</h3>
+        <p style="line-height: 1.6;">${escaparHtml(solicitud.historia || "No informó una historia o leyenda.")}</p>
+        <p><strong>Quiere insignia:</strong> ${solicitud.quiereInsignia ? "Sí" : "No"}</p>
+        <p><strong>Asocia la historia a la insignia:</strong> ${solicitud.asociarHistoriaInsignia ? "Sí" : "No"}</p>
+
+        <p style="margin-top: 26px; color: #66515f;">
+          La solicitud también quedó guardada en el panel de administración.
+        </p>
+      </div>
+    `,
+  });
+}
+
+export async function enviarConfirmacionSolicitudComercio(solicitud) {
+  return getResendClient().emails.send({
+    from: mailFrom,
+    to: solicitud.email,
+    subject: "Recibimos tu solicitud comercial - Xendaria",
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #401A37; padding: 24px; max-width: 560px;">
+        <p style="margin: 0 0 6px; color: #AA63E0; font-weight: 700;">Xendaria</p>
+        <h2 style="margin: 0 0 16px;">¡Gracias por sumar tu comercio!</h2>
+        <p style="line-height: 1.6;">
+          Recibimos la solicitud de <strong>${escaparHtml(solicitud.nombreComercio)}</strong>
+          para el plan de <strong>${escaparHtml(solicitud.plan)}</strong>.
+        </p>
+        <p style="line-height: 1.6;">
+          Vamos a revisar la propuesta y te vamos a responder por este mismo email
+          con los próximos pasos y cualquier contenido adicional que necesitemos.
+        </p>
+        <div style="margin-top: 22px; border-radius: 12px; background: #FDF6F0; padding: 16px;">
+          <strong>Beneficio propuesto</strong>
+          <p style="margin-bottom: 0; line-height: 1.5;">${escaparHtml(solicitud.beneficio)}</p>
+        </div>
+        <p style="margin-top: 24px; color: #66515f;">Equipo de Xendaria</p>
+      </div>
+    `,
+  });
 }

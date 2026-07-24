@@ -16,6 +16,7 @@ import {
 import { asegurarIndiceCalificaciones } from "./services/calificaciones.service.js";
 import { asegurarIndicesRutas } from "./services/rutas_recomendadas.service.js";
 import { asegurarIndicesTitulos } from "./services/titulos.service.js";
+import { asegurarIndicesComercios } from "./services/comercios.service.js";
 import { initSocket } from "./services/socket.service.js";
 import PuntosApiRouter from "./api/routes/routes.api.puntos_visitables.js";
 import UsuariosApiRouter from "./api/routes/routes.api.usuarios.js";
@@ -30,6 +31,7 @@ import CalificacionesApiRouter from "./api/routes/routes.api.calificaciones.js";
 import RutasApiRouter from "./api/routes/routes.api.rutas_recomendadas.js";
 import DashboardApiRouter from "./api/routes/routes.api.dashboard.js";
 import TitulosApiRouter from "./api/routes/routes.api.titulos.js";
+import ComerciosApiRouter from "./api/routes/routes.api.comercios.js";
 import PuntosRouter from "./routes/puntos_visitables.route.js";
 import UsuariosRouter from "./routes/usuarios.route.js";
 import cors from "cors";
@@ -37,8 +39,13 @@ import cors from "cors";
 const app = express();
 const allowedOrigins = [
     "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
     process.env.FRONTEND_URL,
-].filter(Boolean);
+    process.env.LANDING_URL,
+    ...(process.env.CORS_ORIGINS || "").split(","),
+].filter(Boolean).map((origin) => origin.trim());
 const corsOptions = {
     origin: allowedOrigins,
     credentials: true,
@@ -60,6 +67,7 @@ await sincronizarVisitasDesdeUsuarios();
 await asegurarIndiceCalificaciones();
 await asegurarIndicesRutas();
 await asegurarIndicesTitulos();
+await asegurarIndicesComercios();
 
 // Rutas
 app.use("/api/puntos", PuntosApiRouter);
@@ -75,6 +83,7 @@ app.use("/api/calificaciones", CalificacionesApiRouter);
 app.use("/api/rutas", RutasApiRouter);
 app.use("/api/admin", DashboardApiRouter);
 app.use("/api/titulos", TitulosApiRouter);
+app.use("/api/comercios", ComerciosApiRouter);
 app.use("/puntos", PuntosRouter);
 app.use("/usuarios", UsuariosRouter);
 //app.get("/api/health", (_req, res) => {
