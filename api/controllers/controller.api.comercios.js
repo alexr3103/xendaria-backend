@@ -3,6 +3,7 @@ import {
   enviarConfirmacionSolicitudComercio,
   enviarSolicitudComercioAdmin,
 } from "../../services/email.service.js";
+import * as recompensasService from "../../services/recompensas_comercio.service.js";
 
 export async function crearSolicitudComercio(req, res) {
   try {
@@ -74,6 +75,101 @@ export async function actualizarEstadoSolicitud(req, res) {
     console.error("[actualizarEstadoSolicitud]", error);
     return res.status(error.status || 500).json({
       message: error.message || "No se pudo actualizar la solicitud",
+    });
+  }
+}
+
+export async function getConfiguracionRecompensaAdmin(req, res) {
+  try {
+    const configuracion =
+      await recompensasService.getConfiguracionRecompensaAdmin(
+        req.params.idPunto
+      );
+
+    return res.status(200).json({
+      configurada: Boolean(configuracion),
+      configuracion,
+    });
+  } catch (error) {
+    console.error("[getConfiguracionRecompensaAdmin]", error);
+    return res.status(error.status || 500).json({
+      message: error.message || "No se pudo obtener la recompensa",
+    });
+  }
+}
+
+export async function guardarConfiguracionRecompensa(req, res) {
+  try {
+    const configuracion =
+      await recompensasService.guardarConfiguracionRecompensa(
+        req.params.idPunto,
+        req.body
+      );
+
+    return res.status(200).json({
+      message: "Recompensa guardada correctamente",
+      configuracion,
+    });
+  } catch (error) {
+    console.error("[guardarConfiguracionRecompensa]", error);
+    return res.status(error.status || 500).json({
+      message: error.message || "No se pudo guardar la recompensa",
+    });
+  }
+}
+
+export async function getEstadoRecompensaUsuario(req, res) {
+  try {
+    const recompensa = await recompensasService.getEstadoRecompensaUsuario(
+      req.user.id,
+      req.params.idPunto
+    );
+
+    if (!recompensa) {
+      return res.status(404).json({
+        message: "Este comercio no tiene una recompensa configurada",
+      });
+    }
+
+    return res.status(200).json(recompensa);
+  } catch (error) {
+    console.error("[getEstadoRecompensaUsuario]", error);
+    return res.status(error.status || 500).json({
+      message: error.message || "No se pudo consultar la recompensa",
+    });
+  }
+}
+
+export async function getMisCanjesRecompensas(req, res) {
+  try {
+    const canjes = await recompensasService.getCanjesRecompensasUsuario(
+      req.user.id
+    );
+
+    return res.status(200).json(canjes);
+  } catch (error) {
+    console.error("[getMisCanjesRecompensas]", error);
+    return res.status(error.status || 500).json({
+      message: error.message || "No se pudieron obtener los beneficios canjeados",
+    });
+  }
+}
+
+export async function canjearRecompensa(req, res) {
+  try {
+    const recompensa = await recompensasService.canjearRecompensa(
+      req.user.id,
+      req.params.idPunto
+    );
+
+    return res.status(201).json({
+      message: "Recompensa abierta correctamente",
+      recompensa,
+    });
+  } catch (error) {
+    console.error("[canjearRecompensa]", error);
+    return res.status(error.status || 500).json({
+      message: error.message || "No se pudo abrir la recompensa",
     });
   }
 }

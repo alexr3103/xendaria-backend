@@ -15,6 +15,7 @@ const DESCRIPCION_USUARIO_MAX_LENGTH = 150;
 const TOKEN_EXPIRATION_USER = "15d";
 const TOKEN_EXPIRATION_ADMIN = "8h";
 const GOOGLE_OAUTH_DUMMY_PASSWORD = "google_oauth_dummy";
+const CATEGORIA_COMERCIOS = "comercios";
 const PASSWORD_RULES = [
   {
     test: (value) => String(value || "").length >= 6,
@@ -168,8 +169,17 @@ export async function getResumenPuntosPropiosAdmin(req, res) {
 export async function getUsuariosById(req, res) {
   try {
     const id = req.params.id;
-    const usuario = await serviceUsuarios.getUsuariosById(id);
+    let usuario = await serviceUsuarios.getUsuariosById(id);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
+
+    if (
+      String(usuario.role || "").toLowerCase() === "admin" &&
+      req.user?.role !== "admin"
+    ) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    usuario = await serviceUsuarios.ocultarRelacionesAdministradores(usuario);
     res.status(200).json(prepararUsuarioParaRespuesta(usuario, req, id));
   } catch (e) {
     console.error("[getUsuariosById]", e);
@@ -282,6 +292,11 @@ export async function editarUsuario(req, res) {
     }
 
     await serviceUsuarios.editarUsuario(id, data);
+
+    if (String(data.role || "").toLowerCase() === "admin") {
+      await serviceUsuarios.quitarUsuarioDeComunidad(id);
+    }
+
     const usuarioActualizado = await serviceUsuarios.getUsuariosById(id);
     const { password, ...usuarioSeguro } = usuarioActualizado;
 
@@ -525,6 +540,13 @@ function usuarioPuedeVerDatosPrivados(req, idUsuario) {
   return usuarioPuedeGestionar(req, idUsuario) || req.user?.role === "admin";
 }
 
+function usuarioAdminOcultoPara(req, usuario) {
+  return (
+    String(usuario?.role || "").toLowerCase() === "admin" &&
+    req.user?.role !== "admin"
+  );
+}
+
 function prepararUsuarioParaRespuesta(usuario, req, idUsuario) {
   const { password, ...usuarioSeguro } = usuario;
   const configuracion = serviceUsuarios.normalizarConfiguracionUsuario(
@@ -637,7 +659,14 @@ function normalizarCoordenadasPuntoPropio(lat, lon) {
   const latNumber = Number(lat);
   const lonNumber = Number(lon);
 
-  if (!Number.isFinite(latNumber) || !Number.isFinite(lonNumber)) {
+  if (
+    !Number.isFinite(latNumber) ||
+    !Number.isFinite(lonNumber) ||
+    latNumber < -90 ||
+    latNumber > 90 ||
+    lonNumber < -180 ||
+    lonNumber > 180
+  ) {
     return null;
   }
 
@@ -651,6 +680,10 @@ function normalizarCoordenadasPuntoPropio(lat, lon) {
   };
 }
 
+function esCategoriaComercio(categoria) {
+  return String(categoria || "").trim().toLowerCase() === CATEGORIA_COMERCIOS;
+}
+
 // Crear nuevo punto privado asociado al usuario
 export async function nuevoPunto(req, res) {
   const idUsuario = req.params.idUsuario;
@@ -659,18 +692,49 @@ export async function nuevoPunto(req, res) {
     return res.status(403).json({ message: "No podes crear puntos para otro usuario" });
   }
 
+  if (esCategoriaComercio(req.body.categoria)) {
+    return res.status(400).json({
+      message: "La categoria Comercios solo puede ser administrada por un administrador",
+    });
+  }
+
+  const camposObligatorios = {
+    nombre: String(req.body.nombre || "").trim(),
+    descripcion: String(req.body.descripcion || "").trim(),
+    direccion: String(req.body.direccion || "").trim(),
+    categoria: String(req.body.categoria || "").trim(),
+  };
+  const campoFaltante = Object.entries(camposObligatorios).find(
+    ([, valor]) => !valor
+  );
+
+  if (campoFaltante) {
+    return res.status(400).json({
+      message: `El campo ${campoFaltante[0]} es obligatorio`,
+    });
+  }
+
+  const coordenadas = normalizarCoordenadasPuntoPropio(
+    req.body.lat,
+    req.body.lon
+  );
+
+  if (!coordenadas) {
+    return res.status(400).json({
+      message: "Ubicá y confirmá el pin antes de guardar el punto",
+    });
+  }
+
   const punto = limpiarCamposVacios({
-    categoria: req.body.categoria,
-    nombre: req.body.nombre,
+    categoria: camposObligatorios.categoria,
+    nombre: camposObligatorios.nombre,
     foto: req.body.foto,
     fotoKey: req.body.fotoKey,
-    direccion: req.body.direccion,
-    descripcion: req.body.descripcion,
+    direccion: camposObligatorios.direccion,
+    descripcion: camposObligatorios.descripcion,
     descripcion_completa: req.body.descripcion_completa,
     link: req.body.link,
-    lat: req.body.lat,
-    lon: req.body.lon,
-    ubicacion: req.body.ubicacion,
+    ...coordenadas,
   });
 
   try {
@@ -678,7 +742,9 @@ export async function nuevoPunto(req, res) {
     res.status(201).json({ message: "Punto propio creado correctamente", nuevoPunto });
   } catch (err) {
     console.error("[nuevoPunto]", err);
-    res.status(500).json({ message: "Error interno del servidor" });
+    res
+      .status(err.status || 500)
+      .json({ message: err.message || "No se pudo guardar el punto propio" });
   }
 }
 
@@ -727,17 +793,45 @@ export async function editarPuntoPropio(req, res) {
     return res.status(403).json({ message: "No podes editar puntos de otro usuario" });
   }
 
+  if (esCategoriaComercio(req.body.categoria)) {
+    return res.status(400).json({
+      message: "La categoria Comercios solo puede ser administrada por un administrador",
+    });
+  }
+
   try {
     const puntoActual = await serviceUsuarios.getPuntoPropioById(idUsuario, idPunto);
     if (!puntoActual) return res.status(404).json({ message: "Punto propio no encontrado" });
 
+    const camposTexto = ["nombre", "descripcion", "direccion", "categoria"];
+    const campoVacio = camposTexto.find(
+      (campo) =>
+        req.body[campo] !== undefined && !String(req.body[campo]).trim()
+    );
+
+    if (campoVacio) {
+      return res.status(400).json({
+        message: `El campo ${campoVacio} no puede quedar vacío`,
+      });
+    }
+
     const data = limpiarCamposVacios({
-      categoria: req.body.categoria,
-      nombre: req.body.nombre,
+      categoria:
+        req.body.categoria === undefined
+          ? undefined
+          : String(req.body.categoria).trim(),
+      nombre:
+        req.body.nombre === undefined ? undefined : String(req.body.nombre).trim(),
       foto: req.body.foto,
       fotoKey: req.body.fotoKey,
-      direccion: req.body.direccion,
-      descripcion: req.body.descripcion,
+      direccion:
+        req.body.direccion === undefined
+          ? undefined
+          : String(req.body.direccion).trim(),
+      descripcion:
+        req.body.descripcion === undefined
+          ? undefined
+          : String(req.body.descripcion).trim(),
     });
 
     if (req.body.lat !== undefined || req.body.lon !== undefined) {
@@ -747,7 +841,9 @@ export async function editarPuntoPropio(req, res) {
       );
 
       if (!coordenadas) {
-        return res.status(400).json({ message: "Coordenadas invalidas" });
+        return res.status(400).json({
+          message: "Ubicá y confirmá el pin antes de actualizar el punto",
+        });
       }
 
       Object.assign(data, coordenadas, {
@@ -775,7 +871,9 @@ export async function editarPuntoPropio(req, res) {
     });
   } catch (err) {
     console.error("[editarPuntoPropio]", err);
-    res.status(500).json({ message: "Error al editar punto propio" });
+    res
+      .status(err.status || 500)
+      .json({ message: err.message || "No se pudo editar el punto propio" });
   }
 }
 
@@ -858,6 +956,9 @@ export async function getFavoritosUsuario(req, res) {
   try {
     const usuario = await serviceUsuarios.getUsuariosById(idUsuario);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
+    if (usuarioAdminOcultoPara(req, usuario)) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
 
     if (!favoritosVisiblesPara(usuario, req, idUsuario)) {
       return res.status(403).json({ message: "Los favoritos de este perfil son privados" });
@@ -878,6 +979,9 @@ export async function getAlbumInsigniasUsuario(req, res) {
   try {
     const usuario = await serviceUsuarios.getUsuariosById(idUsuario);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
+    if (usuarioAdminOcultoPara(req, usuario)) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
 
     if (!albumInsigniasVisiblePara(usuario, req, idUsuario)) {
       return res.status(403).json({ message: "El álbum de insignias de este perfil es privado" });
@@ -898,6 +1002,9 @@ export async function getPuntosVisitadosUsuario(req, res) {
   try {
     const usuario = await serviceUsuarios.getUsuariosById(idUsuario);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
+    if (usuarioAdminOcultoPara(req, usuario)) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
 
     if (!puntosVisitadosVisiblesPara(usuario, req, idUsuario)) {
       return res.status(403).json({ message: "Los puntos visitados de este perfil son privados" });

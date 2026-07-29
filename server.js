@@ -17,6 +17,7 @@ import { asegurarIndiceCalificaciones } from "./services/calificaciones.service.
 import { asegurarIndicesRutas } from "./services/rutas_recomendadas.service.js";
 import { asegurarIndicesTitulos } from "./services/titulos.service.js";
 import { asegurarIndicesComercios } from "./services/comercios.service.js";
+import { asegurarIndicesRecompensasComercio } from "./services/recompensas_comercio.service.js";
 import { initSocket } from "./services/socket.service.js";
 import PuntosApiRouter from "./api/routes/routes.api.puntos_visitables.js";
 import UsuariosApiRouter from "./api/routes/routes.api.usuarios.js";
@@ -68,6 +69,7 @@ await asegurarIndiceCalificaciones();
 await asegurarIndicesRutas();
 await asegurarIndicesTitulos();
 await asegurarIndicesComercios();
+await asegurarIndicesRecompensasComercio();
 
 // Rutas
 app.use("/api/puntos", PuntosApiRouter);

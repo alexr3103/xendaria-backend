@@ -7,6 +7,15 @@ function collection() {
   return db.collection("puntos_visitables");
 }
 
+function insigniasArchivadasCollection() {
+  return getDB().collection("insignias_archivadas");
+}
+
+function getInsigniaUrl(punto = {}) {
+  if (typeof punto.insignia === "string") return punto.insignia;
+  return punto.insignia?.url || punto.insignia?.imagen || punto.insignia?.foto || "";
+}
+
 export async function asegurarIndiceGeografico() {
   await collection().createIndex(
     { ubicacion: "2dsphere" },
@@ -383,8 +392,84 @@ export async function reemplazarPunto(id, punto) {
   return collection().replaceOne({ _id: new ObjectId(id) }, puntoAGuardar);
 }
 
+async function limpiarReferenciasPuntoEliminado(puntoId) {
+  const db = getDB();
+  const rutas = await db
+    .collection("rutas_recomendadas")
+    .find({ puntos: puntoId })
+    .toArray();
+
+  for (const ruta of rutas) {
+    const puntos = (ruta.puntos || []).filter(
+      (idPunto) => idPunto?.toString?.() !== puntoId.toString()
+    );
+    const rutaSigueDisponible = puntos.length >= 3;
+
+    await db.collection("rutas_recomendadas").updateOne(
+      { _id: ruta._id },
+      {
+        $set: {
+          puntos,
+          cantidadPuntos: puntos.length,
+          puntosHash: getPuntosHash(puntos),
+          activa: rutaSigueDisponible ? ruta.activa !== false : false,
+          destacada: rutaSigueDisponible ? Boolean(ruta.destacada) : false,
+          updatedAt: new Date(),
+        },
+        $inc: { versionPuntos: 1 },
+      }
+    );
+  }
+
+  await db.collection("usuarios").updateMany(
+    {},
+    {
+      $pull: {
+        lugares_favoritos: {
+          $in: [puntoId, puntoId.toString()],
+        },
+      },
+    }
+  );
+
+  await Promise.all([
+    db.collection("recompensas_comercio").deleteMany({ idPunto: puntoId }),
+    db
+      .collection("canjes_recompensas_comercio")
+      .deleteMany({ idPunto: puntoId }),
+  ]);
+}
+
 export async function eliminarPunto(id) {
-  return collection().deleteOne({ _id: new ObjectId(id) });
+  const puntoId = new ObjectId(id);
+  const punto = await collection().findOne({ _id: puntoId });
+
+  if (!punto) return { deletedCount: 0 };
+
+  const insigniaUrl = getInsigniaUrl(punto);
+  if (insigniaUrl) {
+    await insigniasArchivadasCollection().updateOne(
+      { _id: puntoId },
+      {
+        $set: {
+          idPunto: puntoId,
+          nombre: punto.nombre || "Insignia",
+          direccion: punto.direccion || "",
+          imagen: insigniaUrl,
+          fechaArchivado: new Date(),
+        },
+      },
+      { upsert: true }
+    );
+  }
+
+  await limpiarReferenciasPuntoEliminado(puntoId);
+
+  return collection().deleteOne({ _id: puntoId });
+}
+
+export async function getInsigniasArchivadas() {
+  return insigniasArchivadasCollection().find({}).toArray();
 }
 
 export async function editarPunto(id, punto) {
@@ -802,8 +887,16 @@ export async function agregarMultimedia(id, contenido) {
 }
 
 export async function eliminarMultimedia(id, multimediaId) {
+  const multimediaObjectId = new ObjectId(multimediaId);
+
   return collection().updateOne(
     { _id: new ObjectId(id) },
-    { $pull: { multimedia: { _id: new ObjectId(multimediaId) } } }
+    {
+      $pull: {
+        multimedia: {
+          _id: { $in: [multimediaObjectId, String(multimediaId)] },
+        },
+      },
+    }
   );
 }

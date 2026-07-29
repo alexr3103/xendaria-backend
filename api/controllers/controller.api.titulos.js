@@ -85,6 +85,12 @@ export async function getTitulosUsuario(req, res) {
     const { idUsuario } = req.params;
     const usuario = await serviceUsuarios.getUsuariosById(idUsuario);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
+    if (
+      String(usuario.role || "").toLowerCase() === "admin" &&
+      req.user?.role !== "admin"
+    ) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
 
     if (!puedeVerTitulosUsuario(req, usuario, idUsuario)) {
       return res.status(403).json({ message: "Este perfil es privado" });

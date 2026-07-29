@@ -101,13 +101,40 @@ function normalizarListaIdsUsuarios(lista = []) {
     .filter((id) => id && ObjectId.isValid(id));
 }
 
-function serializarUsuarioComunidad(usuario, usuarioActual = null) {
+async function getIdsAdministradores() {
+  const administradores = await collection()
+    .find(
+      { role: /^admin$/i },
+      { projection: { _id: 1 } }
+    )
+    .toArray();
+
+  return new Set(administradores.map((usuario) => usuario._id.toString()));
+}
+
+function filtrarIdsAdministradores(lista = [], idsAdministradores = new Set()) {
+  return normalizarListaIdsUsuarios(lista).filter(
+    (id) => !idsAdministradores.has(id)
+  );
+}
+
+function serializarUsuarioComunidad(
+  usuario,
+  usuarioActual = null,
+  idsAdministradores = new Set()
+) {
   const config = normalizarConfiguracionUsuario(usuario.configuracion);
   const siguiendoActual = new Set(
-    normalizarListaIdsUsuarios(usuarioActual?.siguiendo || [])
+    filtrarIdsAdministradores(
+      usuarioActual?.siguiendo || [],
+      idsAdministradores
+    )
   );
   const seguidoresActual = new Set(
-    normalizarListaIdsUsuarios(usuarioActual?.seguidores || [])
+    filtrarIdsAdministradores(
+      usuarioActual?.seguidores || [],
+      idsAdministradores
+    )
   );
   const id = usuario._id.toString();
 
@@ -117,15 +144,21 @@ function serializarUsuarioComunidad(usuario, usuarioActual = null) {
     foto: usuario.foto || "",
     descripcion: config.perfilPublico ? usuario.descripcion || "" : "",
     perfilPublico: config.perfilPublico,
-    seguidoresCount: normalizarListaIdsUsuarios(usuario.seguidores || []).length,
-    siguiendoCount: normalizarListaIdsUsuarios(usuario.siguiendo || []).length,
+    seguidoresCount: filtrarIdsAdministradores(
+      usuario.seguidores || [],
+      idsAdministradores
+    ).length,
+    siguiendoCount: filtrarIdsAdministradores(
+      usuario.siguiendo || [],
+      idsAdministradores
+    ).length,
     loSigo: siguiendoActual.has(id),
     meSigue: seguidoresActual.has(id),
   };
 }
 
 export async function getUsuarios(filter = {}) {
-  const condiciones = [];
+  const condiciones = [{ role: { $not: /^admin$/i } }];
 
   if (filter.filtro === "Con favoritos") {
     condiciones.push({ "lugares_favoritos.0": { $exists: true } });
@@ -237,13 +270,17 @@ export async function editarUsuario(id, usuario) {
 }
 
 export async function buscarUsuariosComunidad(filter = {}, idUsuarioActual) {
-  const usuarioActual = await collection().findOne({
-    _id: new ObjectId(idUsuarioActual),
-  });
+  const [usuarioActual, idsAdministradores] = await Promise.all([
+    collection().findOne({
+      _id: new ObjectId(idUsuarioActual),
+    }),
+    getIdsAdministradores(),
+  ]);
   if (!usuarioActual) return null;
 
   const condiciones = [
     { _id: { $ne: new ObjectId(idUsuarioActual) } },
+    { role: { $not: /^admin$/i } },
     { "configuracion.perfilPublico": { $ne: false } },
   ];
 
@@ -271,20 +308,34 @@ export async function buscarUsuariosComunidad(filter = {}, idUsuarioActual) {
     .limit(limit)
     .toArray();
 
-  return usuarios.map((usuario) => serializarUsuarioComunidad(usuario, usuarioActual));
+  return usuarios.map((usuario) =>
+    serializarUsuarioComunidad(usuario, usuarioActual, idsAdministradores)
+  );
 }
 
 export async function getComunidadUsuario(idUsuario) {
-  const usuario = await collection().findOne({ _id: new ObjectId(idUsuario) });
+  const [usuario, idsAdministradores] = await Promise.all([
+    collection().findOne({ _id: new ObjectId(idUsuario) }),
+    getIdsAdministradores(),
+  ]);
   if (!usuario) return null;
 
-  const siguiendoIds = normalizarListaIdsUsuarios(usuario.siguiendo || []);
-  const seguidoresIds = normalizarListaIdsUsuarios(usuario.seguidores || []);
+  const siguiendoIds = filtrarIdsAdministradores(
+    usuario.siguiendo || [],
+    idsAdministradores
+  );
+  const seguidoresIds = filtrarIdsAdministradores(
+    usuario.seguidores || [],
+    idsAdministradores
+  );
   const ids = [...new Set([...siguiendoIds, ...seguidoresIds])];
   const usuarios = ids.length
     ? await collection()
         .find(
-          { _id: { $in: ids.map((id) => new ObjectId(id)) } },
+          {
+            _id: { $in: ids.map((id) => new ObjectId(id)) },
+            role: { $not: /^admin$/i },
+          },
           {
             projection: {
               password: 0,
@@ -305,11 +356,15 @@ export async function getComunidadUsuario(idUsuario) {
     siguiendo: siguiendoIds
       .map((id) => usuariosPorId.get(id))
       .filter(Boolean)
-      .map((item) => serializarUsuarioComunidad(item, usuario)),
+      .map((item) =>
+        serializarUsuarioComunidad(item, usuario, idsAdministradores)
+      ),
     seguidores: seguidoresIds
       .map((id) => usuariosPorId.get(id))
       .filter(Boolean)
-      .map((item) => serializarUsuarioComunidad(item, usuario)),
+      .map((item) =>
+        serializarUsuarioComunidad(item, usuario, idsAdministradores)
+      ),
   };
 }
 
@@ -329,6 +384,15 @@ export async function seguirUsuario(idUsuario, idObjetivo) {
   ]);
 
   if (!usuario || !objetivo) return null;
+
+  if (
+    String(usuario.role || "").toLowerCase() === "admin" ||
+    String(objetivo.role || "").toLowerCase() === "admin"
+  ) {
+    const error = new Error("Usuario no encontrado");
+    error.status = 404;
+    throw error;
+  }
 
   const configObjetivo = normalizarConfiguracionUsuario(objetivo.configuracion);
   if (!configObjetivo.perfilPublico) {
@@ -350,7 +414,12 @@ export async function seguirUsuario(idUsuario, idObjetivo) {
 
   const usuarioActualizado = await collection().findOne({ _id: usuarioId });
   const objetivoActualizado = await collection().findOne({ _id: objetivoId });
-  return serializarUsuarioComunidad(objetivoActualizado, usuarioActualizado);
+  const idsAdministradores = await getIdsAdministradores();
+  return serializarUsuarioComunidad(
+    objetivoActualizado,
+    usuarioActualizado,
+    idsAdministradores
+  );
 }
 
 export async function dejarDeSeguirUsuario(idUsuario, idObjetivo) {
@@ -371,7 +440,54 @@ export async function dejarDeSeguirUsuario(idUsuario, idObjetivo) {
   const usuarioActualizado = await collection().findOne({ _id: usuarioId });
   const objetivoActualizado = await collection().findOne({ _id: objetivoId });
   if (!objetivoActualizado) return null;
-  return serializarUsuarioComunidad(objetivoActualizado, usuarioActualizado);
+  const idsAdministradores = await getIdsAdministradores();
+  return serializarUsuarioComunidad(
+    objetivoActualizado,
+    usuarioActualizado,
+    idsAdministradores
+  );
+}
+
+export async function ocultarRelacionesAdministradores(usuario) {
+  if (!usuario) return null;
+
+  const idsAdministradores = await getIdsAdministradores();
+  return {
+    ...usuario,
+    siguiendo: filtrarIdsAdministradores(
+      usuario.siguiendo || [],
+      idsAdministradores
+    ),
+    seguidores: filtrarIdsAdministradores(
+      usuario.seguidores || [],
+      idsAdministradores
+    ),
+  };
+}
+
+export async function quitarUsuarioDeComunidad(idUsuario) {
+  const usuarioId = new ObjectId(idUsuario);
+
+  await Promise.all([
+    collection().updateMany(
+      {},
+      {
+        $pull: {
+          siguiendo: usuarioId,
+          seguidores: usuarioId,
+        },
+      }
+    ),
+    collection().updateOne(
+      { _id: usuarioId },
+      {
+        $set: {
+          siguiendo: [],
+          seguidores: [],
+        },
+      }
+    ),
+  ]);
 }
 
 export async function updatePassword(token, password) {
@@ -447,6 +563,7 @@ function normalizarInsignia(valor) {
     idPunto: new ObjectId(id),
     titulo: valor?.titulo || valor?.nombre || "Insignia",
     url,
+    direccion: valor?.direccion || "",
     fechaObtencion: valor?.fechaObtencion
       ? new Date(valor.fechaObtencion)
       : new Date(),
@@ -550,11 +667,22 @@ export async function getAlbumInsigniasUsuario(idUsuario) {
     insigniasUsuario.map((insignia) => [insignia.idPunto.toString(), insignia])
   );
 
-  const puntosConInsignia = (await servicePuntos.getPuntos())
+  const puntosConInsignia = (
+    await servicePuntos.getPuntos({ incluirInactivos: true })
+  )
     .filter((punto) => getInsigniaUrlPunto(punto))
     .sort((a, b) => String(a.nombre || "").localeCompare(String(b.nombre || "")));
 
-  const insignias = puntosConInsignia.map((punto) => {
+  const idsPuntosAlbum = new Set(
+    puntosConInsignia.map((punto) => punto._id.toString())
+  );
+  const insigniasArchivadas = (await servicePuntos.getInsigniasArchivadas())
+    .filter((insignia) => insignia.imagen)
+    .filter((insignia) => !idsPuntosAlbum.has(insignia._id.toString()));
+  const idsInsigniasArchivadas = new Set(
+    insigniasArchivadas.map((insignia) => insignia._id.toString())
+  );
+  const insigniasPuntos = puntosConInsignia.map((punto) => {
     const idPunto = punto._id.toString();
     const obtenida = insigniasPorPunto.get(idPunto);
 
@@ -565,16 +693,57 @@ export async function getAlbumInsigniasUsuario(idUsuario) {
       imagen: getInsigniaUrlPunto(punto) || obtenida?.url || "",
       desbloqueada: Boolean(obtenida),
       fechaObtencion: obtenida?.fechaObtencion || null,
+      disponible: punto.activo !== false,
     };
   });
+  const insigniasEliminadas = insigniasArchivadas.map((insignia) => {
+    const idPunto = insignia._id.toString();
+    const obtenida = insigniasPorPunto.get(idPunto);
+
+    return {
+      idPunto,
+      nombre: insignia.nombre || obtenida?.titulo || "Insignia",
+      direccion: insignia.direccion || obtenida?.direccion || "",
+      imagen: insignia.imagen || obtenida?.url || "",
+      desbloqueada: Boolean(obtenida),
+      fechaObtencion: obtenida?.fechaObtencion || null,
+      disponible: false,
+    };
+  });
+  const insigniasHistoricas = insigniasUsuario
+    .filter(
+      (insignia) =>
+        !idsPuntosAlbum.has(insignia.idPunto.toString()) &&
+        !idsInsigniasArchivadas.has(insignia.idPunto.toString())
+    )
+    .map((insignia) => ({
+      idPunto: insignia.idPunto.toString(),
+      nombre: insignia.titulo || "Insignia",
+      direccion: insignia.direccion || "",
+      imagen: insignia.url || "",
+      desbloqueada: true,
+      fechaObtencion: insignia.fechaObtencion || null,
+      disponible: false,
+    }));
+  const insignias = [
+    ...insigniasPuntos,
+    ...insigniasEliminadas,
+    ...insigniasHistoricas,
+  ].sort((a, b) =>
+    String(a.nombre || "").localeCompare(String(b.nombre || ""))
+  );
 
   const desbloqueadas = insignias.filter((insignia) => insignia.desbloqueada).length;
+  const totalContabilizable = insignias.filter(
+    (insignia) => insignia.disponible || insignia.desbloqueada
+  ).length;
 
   return {
     usuarioId: idUsuario,
-    total: insignias.length,
+    total: totalContabilizable,
     desbloqueadas,
-    pendientes: Math.max(insignias.length - desbloqueadas, 0),
+    pendientes: Math.max(totalContabilizable - desbloqueadas, 0),
+    noDisponibles: insignias.filter((insignia) => !insignia.disponible).length,
     insignias,
   };
 }
@@ -611,6 +780,7 @@ export async function registrarPuntoVisitado(idUsuario, idPunto) {
         idPunto: new ObjectId(idPunto),
         titulo: registro.punto.nombre || "Insignia",
         url: registro.punto.insignia,
+        direccion: registro.punto.direccion || "",
         fechaObtencion: new Date(),
       });
     }

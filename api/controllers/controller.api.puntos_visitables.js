@@ -1,6 +1,9 @@
 import * as service from "../../services/puntos_visitables.service.js";
+import * as serviceUsuarios from "../../services/usuarios.service.js";
 import { consultarStreetViewMetadata } from "../../services/streetview.service.js";
 import { ObjectId } from "mongodb";
+import bcrypt from "bcrypt";
+import * as recompensasService from "../../services/recompensas_comercio.service.js";
 
 const TIPOS_MULTIMEDIA = new Set(["youtube", "spotify", "imagen", "enlace"]);
 
@@ -16,6 +19,23 @@ function normalizarHistorias(historias) {
     contenido: String(historia.contenido || "").trim(),
     foto: historia.foto || null,
   }));
+}
+
+function normalizarMultimedia(multimedia) {
+  if (!Array.isArray(multimedia)) return [];
+
+  return multimedia
+    .filter((contenido) => contenido && typeof contenido === "object")
+    .map((contenido) => {
+      const multimediaId = String(contenido._id || "");
+
+      return {
+        ...contenido,
+        _id: ObjectId.isValid(multimediaId)
+          ? new ObjectId(multimediaId)
+          : new ObjectId(),
+      };
+    });
 }
 
 function validarUrlMultimedia(tipo, value) {
@@ -41,6 +61,13 @@ function validarUrlMultimedia(tipo, value) {
 }
 
 function normalizarCoordenadas(lat, lon) {
+  const latVacia =
+    lat === null || lat === undefined || String(lat).trim() === "";
+  const lonVacia =
+    lon === null || lon === undefined || String(lon).trim() === "";
+
+  if (latVacia || lonVacia) return null;
+
   const latNumber = Number(lat);
   const lonNumber = Number(lon);
 
@@ -84,7 +111,7 @@ function crearPuntoDesdeBody(body) {
     lat: coordenadas?.lat ?? null,
     lon: coordenadas?.lon ?? null,
     ubicacion: coordenadas?.ubicacion ?? null,
-    multimedia: Array.isArray(body.multimedia) ? body.multimedia : [],
+    multimedia: normalizarMultimedia(body.multimedia),
     historias: normalizarHistorias(body.historias),
     vista360: body.vista360 || {
       habilitada: false,
@@ -179,10 +206,17 @@ export async function fusionarDuplicado(req, res) {
 export async function nuevoPunto(req, res) {
   try {
     const punto = crearPuntoDesdeBody(req.body);
+    const recompensaComercio = req.body.recompensaComercio;
     const duplicado = await service.buscarPuntoDuplicado(punto);
 
     if (duplicado) {
       const fusionado = await service.fusionarPuntoEnPrincipal(duplicado._id, punto);
+      if (recompensaComercio) {
+        await recompensasService.guardarConfiguracionRecompensa(
+          duplicado._id,
+          recompensaComercio
+        );
+      }
       return res.status(200).json({
         message: "El punto ya existia y se fusiono con sus categorias",
         fusionado: true,
@@ -191,10 +225,18 @@ export async function nuevoPunto(req, res) {
     }
 
     const puntoNuevo = await service.guardarPunto(punto);
+    if (recompensaComercio) {
+      await recompensasService.guardarConfiguracionRecompensa(
+        puntoNuevo.insertedId,
+        recompensaComercio
+      );
+    }
     return res.status(201).json(puntoNuevo);
   } catch (e) {
     console.error("[nuevoPunto]", e);
-    return res.status(500).json({ message: "No se pudo guardar el punto" });
+    return res
+      .status(e.status || 500)
+      .json({ message: e.message || "No se pudo guardar el punto" });
   }
 }
 
@@ -202,8 +244,38 @@ export async function nuevoPunto(req, res) {
 export async function eliminarPunto(req, res) {
   try {
     const id = req.params.id;
-    await service.eliminarPunto(id);
-    return res.status(202).json({ message: `El punto fue eliminado correctamente (id: ${id})` });
+    const password = String(req.body?.password || "").trim();
+
+    if (!password) {
+      return res.status(400).json({
+        message: "Ingresá tu contraseña de administrador para eliminar el punto",
+      });
+    }
+
+    const admin = await serviceUsuarios.getUsuarioAuthById(req.user.id);
+    if (!admin?.password) {
+      return res.status(401).json({
+        message: "No se pudo validar la cuenta administradora",
+      });
+    }
+
+    const passwordValida = await bcrypt.compare(
+      password,
+      String(admin.password).trim()
+    );
+    if (!passwordValida) {
+      return res.status(401).json({ message: "Contraseña incorrecta" });
+    }
+
+    const resultado = await service.eliminarPunto(id);
+
+    if (!resultado.deletedCount) {
+      return res.status(404).json({ message: "No se encontró el punto" });
+    }
+
+    return res.status(202).json({
+      message: `El punto fue eliminado correctamente (id: ${id})`,
+    });
   } catch (e) {
     console.error("[eliminarPunto]", e);
     return res.status(500).json({ message: "No se pudo eliminar el punto" });
@@ -215,7 +287,29 @@ export async function editarPunto(req, res) {
   try {
     const id = req.params.id;
     const data = { ...req.body };
+    const incluyeRecompensa = Object.hasOwn(data, "recompensaComercio");
+    const recompensaComercio = data.recompensaComercio;
+    delete data.recompensaComercio;
     let puntoActual = null;
+    const camposTextoObligatorios = [
+      ["nombre", "nombre"],
+      ["direccion", "dirección"],
+      ["descripcion", "descripción breve"],
+    ];
+    const camposVacios = camposTextoObligatorios
+      .filter(
+        ([campo]) =>
+          data[campo] !== undefined && !String(data[campo] || "").trim()
+      )
+      .map(([, etiqueta]) => etiqueta);
+
+    if (camposVacios.length > 0) {
+      return res.status(400).json({
+        message: `No se puede guardar el punto. Falta completar: ${camposVacios.join(
+          ", "
+        )}`,
+      });
+    }
 
     if (data.historias !== undefined) {
       if (!Array.isArray(data.historias) || data.historias.length > 3) {
@@ -233,8 +327,24 @@ export async function editarPunto(req, res) {
       data.historias = historias;
     }
 
+    if (data.multimedia !== undefined) {
+      if (!Array.isArray(data.multimedia)) {
+        return res.status(400).json({
+          message: "El contenido multimedia debe ser una lista",
+        });
+      }
+
+      data.multimedia = normalizarMultimedia(data.multimedia);
+    }
+
     if (data.categoria !== undefined || data.categorias !== undefined) {
       const categorias = normalizarCategoriasBody(data);
+      if (categorias.length === 0) {
+        return res.status(400).json({
+          message: "No se puede guardar el punto sin una categoría",
+        });
+      }
+
       data.categorias = categorias;
       data.categoria = data.categoria || categorias[0] || "";
     }
@@ -280,10 +390,22 @@ export async function editarPunto(req, res) {
     }
 
     const puntoEditado = await service.editarPunto(id, data);
+    if (incluyeRecompensa) {
+      if (recompensaComercio) {
+        await recompensasService.guardarConfiguracionRecompensa(
+          id,
+          recompensaComercio
+        );
+      } else {
+        await recompensasService.eliminarConfiguracionRecompensa(id);
+      }
+    }
     return res.status(202).json(puntoEditado);
   } catch (e) {
     console.error("[editarPunto]", e);
-    return res.status(500).json({ message: "No se pudo editar el punto" });
+    return res
+      .status(e.status || 500)
+      .json({ message: e.message || "No se pudo editar el punto" });
   }
 }
 

@@ -28,6 +28,7 @@ function normalizarUsuarioRanking(item, index) {
 function getParticipaRankingMatch() {
   return {
     "usuario.configuracion.mostrarActividadRanking": { $ne: false },
+    "usuario.role": { $not: /^admin$/i },
   };
 }
 
@@ -87,6 +88,13 @@ export async function getMiPosicionRanking(idUsuario) {
   const usuario = await usuariosCollection().findOne({ _id: new ObjectId(idUsuario) });
   if (!usuario) return null;
 
+  if (String(usuario.role || "").toLowerCase() === "admin") {
+    return {
+      visible: false,
+      message: "Las cuentas administradoras no participan del ranking.",
+    };
+  }
+
   if (usuario.configuracion?.mostrarActividadRanking === false) {
     return {
       visible: false,
@@ -126,6 +134,20 @@ export async function getRankingLugares({ limit = 20 } = {}) {
 
   const resultados = await visitasCollection()
     .aggregate([
+      {
+        $lookup: {
+          from: "usuarios",
+          localField: "idUsuario",
+          foreignField: "_id",
+          as: "usuario",
+        },
+      },
+      { $unwind: "$usuario" },
+      {
+        $match: {
+          "usuario.role": { $not: /^admin$/i },
+        },
+      },
       {
         $group: {
           _id: "$idPunto",
@@ -189,6 +211,20 @@ export async function getRankingLugaresMejorVotados({
 
   const pipeline = [
     {
+      $lookup: {
+        from: "usuarios",
+        localField: "idUsuario",
+        foreignField: "_id",
+        as: "usuario",
+      },
+    },
+    { $unwind: "$usuario" },
+    {
+      $match: {
+        "usuario.role": { $not: /^admin$/i },
+      },
+    },
+    {
       $group: {
         _id: "$idPunto",
         promedioEstrellas: { $avg: "$estrellas" },
@@ -220,9 +256,30 @@ export async function getRankingLugaresMejorVotados({
     {
       $lookup: {
         from: "visitas",
-        localField: "_id",
-        foreignField: "idPunto",
-        as: "visitas",
+        let: { puntoId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ["$idPunto", "$$puntoId"] },
+            },
+          },
+          {
+            $lookup: {
+              from: "usuarios",
+              localField: "idUsuario",
+              foreignField: "_id",
+              as: "usuario",
+            },
+          },
+          { $unwind: "$usuario" },
+          {
+            $match: {
+              "usuario.role": { $not: /^admin$/i },
+            },
+          },
+          { $count: "total" },
+        ],
+        as: "metricasVisitas",
       },
     },
     {
@@ -234,7 +291,12 @@ export async function getRankingLugaresMejorVotados({
         foto: "$punto.foto",
         promedioEstrellas: 1,
         totalCalificaciones: 1,
-        totalVisitas: { $size: "$visitas" },
+        totalVisitas: {
+          $ifNull: [
+            { $arrayElemAt: ["$metricasVisitas.total", 0] },
+            0,
+          ],
+        },
         ultimaCalificacion: 1,
       },
     },

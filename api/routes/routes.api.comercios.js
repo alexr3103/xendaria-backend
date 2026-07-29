@@ -19,5 +19,36 @@ route.patch(
   validateObjectId("idSolicitud"),
   controllers.actualizarEstadoSolicitud
 );
+route.get(
+  "/recompensas/admin/puntos/:idPunto",
+  verifyToken,
+  requireAdmin,
+  validateObjectId("idPunto"),
+  controllers.getConfiguracionRecompensaAdmin
+);
+route.put(
+  "/recompensas/admin/puntos/:idPunto",
+  verifyToken,
+  requireAdmin,
+  validateObjectId("idPunto"),
+  controllers.guardarConfiguracionRecompensa
+);
+route.get(
+  "/recompensas/mis-canjes",
+  verifyToken,
+  controllers.getMisCanjesRecompensas
+);
+route.get(
+  "/recompensas/puntos/:idPunto",
+  verifyToken,
+  validateObjectId("idPunto"),
+  controllers.getEstadoRecompensaUsuario
+);
+route.post(
+  "/recompensas/puntos/:idPunto/canjear",
+  verifyToken,
+  validateObjectId("idPunto"),
+  controllers.canjearRecompensa
+);
 
 export default route;

@@ -43,6 +43,37 @@ function normalizarNumero(valor = 0) {
   return Number(valor || 0);
 }
 
+function etapasUsuarioRegular() {
+  return [
+    {
+      $lookup: {
+        from: "usuarios",
+        localField: "idUsuario",
+        foreignField: "_id",
+        as: "usuario",
+      },
+    },
+    { $unwind: "$usuario" },
+    {
+      $match: {
+        "usuario.role": { $not: /^admin$/i },
+      },
+    },
+  ];
+}
+
+async function contarActividadUsuariosRegulares(coleccion, filtro = {}) {
+  const [resultado = {}] = await coleccion
+    .aggregate([
+      { $match: filtro },
+      ...etapasUsuarioRegular(),
+      { $count: "total" },
+    ])
+    .toArray();
+
+  return normalizarNumero(resultado.total);
+}
+
 function alerta(tipo, titulo, total, descripcion, to, variant = "info") {
   return {
     tipo,
@@ -226,6 +257,7 @@ async function getMetricasOrdenes() {
 async function getMetricasCalificaciones() {
   const [metricas = {}] = await calificacionesCollection()
     .aggregate([
+      ...etapasUsuarioRegular(),
       {
         $group: {
           _id: null,
@@ -245,6 +277,7 @@ async function getMetricasCalificaciones() {
 async function getTopRutasRealizadas(limit = 5) {
   return rutasRealizadasCollection()
     .aggregate([
+      ...etapasUsuarioRegular(),
       {
         $group: {
           _id: "$idRuta",
@@ -282,6 +315,7 @@ async function getTopRutasRealizadas(limit = 5) {
 async function getCategoriasMasVisitadas(limit = 6) {
   return visitasCollection()
     .aggregate([
+      ...etapasUsuarioRegular(),
       {
         $group: {
           _id: "$idPunto",
@@ -367,13 +401,17 @@ async function getActividadReciente() {
   desde.setDate(desde.getDate() - 7);
 
   const [visitas, ordenes, calificaciones, rutasRealizadas] = await Promise.all([
-    visitasCollection().countDocuments({ fechaVisita: { $gte: desde } }),
+    contarActividadUsuariosRegulares(visitasCollection(), {
+      fechaVisita: { $gte: desde },
+    }),
     ordenesCollection().countDocuments({
       estado: { $in: ESTADOS_ORDEN_VISIBLES },
       createdAt: { $gte: desde },
     }),
-    calificacionesCollection().countDocuments({ updatedAt: { $gte: desde } }),
-    rutasRealizadasCollection().countDocuments({
+    contarActividadUsuariosRegulares(calificacionesCollection(), {
+      updatedAt: { $gte: desde },
+    }),
+    contarActividadUsuariosRegulares(rutasRealizadasCollection(), {
       fechaUltimaCompletada: { $gte: desde },
     }),
   ]);
@@ -486,13 +524,15 @@ export async function getDashboardAdmin() {
     rutasConPuntosInactivos,
     actividadReciente,
   ] = await Promise.all([
-    db().collection("usuarios").countDocuments(),
+    db().collection("usuarios").countDocuments({
+      role: { $not: /^admin$/i },
+    }),
     getMetricasPuntos(),
     getMetricasRutas(),
     getMetricasProductos(),
     getMetricasOrdenes(),
     getMetricasCalificaciones(),
-    visitasCollection().countDocuments(),
+    contarActividadUsuariosRegulares(visitasCollection()),
     rankingService.getRankingLugares({ limit: 5 }),
     getTopRutasRealizadas(5),
     rankingService.getRankingLugaresMejorVotados({ limit: 5 }),
