@@ -23,6 +23,11 @@ export const registerSchema = yup.object({
     .oneOf([yup.ref("password")], "Las contraseñas deben coincidir")
     .required("Confirmar contraseña es obligatorio"),
 
+  aceptaTerminos: yup
+    .boolean()
+    .oneOf([true], "Debes aceptar los terminos y la politica de privacidad")
+    .required("Debes aceptar los terminos y la politica de privacidad"),
+
   foto: yup
     .string()
     .optional(),

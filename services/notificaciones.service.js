@@ -213,21 +213,6 @@ export async function enviarPushMasivo({
 }) {
   if (!configurarWebPush()) return { enviados: 0, disponible: false };
 
-  const evento = await eventosPushCollection().updateOne(
-    { claveEvento },
-    {
-      $setOnInsert: {
-        claveEvento,
-        createdAt: new Date(),
-      },
-    },
-    { upsert: true }
-  );
-
-  if (!evento.upsertedCount) {
-    return { enviados: 0, duplicado: true, disponible: true };
-  }
-
   const usuarios = await usuariosCollection()
     .find(
       {
@@ -246,6 +231,30 @@ export async function enviarPushMasivo({
           })
           .toArray()
       : [];
+
+  if (suscripciones.length === 0) {
+    return {
+      enviados: 0,
+      disponible: true,
+      sinDestinatarios: true,
+    };
+  }
+
+  const evento = await eventosPushCollection().updateOne(
+    { claveEvento },
+    {
+      $setOnInsert: {
+        claveEvento,
+        createdAt: new Date(),
+      },
+    },
+    { upsert: true }
+  );
+
+  if (!evento.upsertedCount) {
+    return { enviados: 0, duplicado: true, disponible: true };
+  }
+
   const resultados = await Promise.all(
     suscripciones.map((suscripcion) =>
       enviarPushASuscripcion(suscripcion, {
@@ -255,9 +264,15 @@ export async function enviarPushMasivo({
       })
     )
   );
+  const enviados = resultados.filter(Boolean).length;
+
+  if (enviados === 0) {
+    await eventosPushCollection().deleteOne({ claveEvento });
+  }
 
   return {
-    enviados: resultados.filter(Boolean).length,
+    enviados,
+    destinatarios: suscripciones.length,
     disponible: true,
   };
 }

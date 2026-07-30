@@ -17,6 +17,7 @@ const TOKEN_EXPIRATION_USER = "15d";
 const TOKEN_EXPIRATION_ADMIN = "8h";
 const GOOGLE_OAUTH_DUMMY_PASSWORD = "google_oauth_dummy";
 const CATEGORIA_COMERCIOS = "comercios";
+const VERSION_TERMINOS = "2026-07-30";
 const PASSWORD_RULES = [
   {
     test: (value) => String(value || "").length >= 6,
@@ -52,7 +53,7 @@ async function esCuentaSoloGoogle(usuario = {}) {
 
 export async function loginGoogle(req, res) {
   try {
-    const { credential } = req.body;
+    const { credential, aceptaTerminos = false } = req.body;
     if (!credential) return res.status(400).json({ message: "Falta credential" });
 
 
@@ -69,6 +70,15 @@ export async function loginGoogle(req, res) {
     let usuario = await serviceUsuarios.getUsuarioByEmail(email);
 
     if (!usuario) {
+      if (aceptaTerminos !== true) {
+        return res.status(428).json({
+          code: "TERMINOS_REQUERIDOS",
+          message:
+            "Acepta los terminos y la politica de privacidad para crear tu cuenta.",
+        });
+      }
+
+      const ahora = new Date();
       const nuevo = {
         nombre,
         email,
@@ -82,6 +92,8 @@ export async function loginGoogle(req, res) {
         seguidores: [],
         siguiendo: [],
         configuracion: serviceUsuarios.normalizarConfiguracionUsuario(),
+        terminosAceptadosAt: ahora,
+        versionTerminos: VERSION_TERMINOS,
         activo: true,
         role: "user"
       };
@@ -203,9 +215,17 @@ export async function getUsuariosById(req, res) {
 //Registrar nuevo usuario (con email y password)
 export async function nuevoUsuario(req, res) {
   try {
-    const { nombre, email, password, foto, descripcion, lugares_favoritos } = req.body;
+    const {
+      nombre,
+      email,
+      password,
+      foto,
+      descripcion,
+      lugares_favoritos,
+      aceptaTerminos,
+    } = req.body;
 
-    if (!nombre || !email || !password) {
+    if (!nombre || !email || !password || aceptaTerminos !== true) {
       return res.status(400).json({ message: "Faltan datos obligatorios" });
     }
 
@@ -227,6 +247,8 @@ export async function nuevoUsuario(req, res) {
       seguidores: [],
       siguiendo: [],
       configuracion: serviceUsuarios.normalizarConfiguracionUsuario(),
+      terminosAceptadosAt: new Date(),
+      versionTerminos: VERSION_TERMINOS,
       activo: true,
       role: "user"
     };
@@ -638,6 +660,8 @@ function prepararUsuarioParaRespuesta(usuario, req, idUsuario) {
       ? usuario.siguiendo.length
       : 0,
   };
+  delete respuesta.terminosAceptadosAt;
+  delete respuesta.versionTerminos;
 
   if (usuarioPuedeVerDatosPrivados(req, idUsuario)) {
     return respuesta;

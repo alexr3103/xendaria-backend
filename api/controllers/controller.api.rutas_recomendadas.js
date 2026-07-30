@@ -5,13 +5,27 @@ async function notificarRutaPublicada(ruta) {
   if (!ruta || ruta.activa === false) return;
 
   try {
-    await notificacionesService.enviarPushMasivo({
+    const resultado = await notificacionesService.enviarPushMasivo({
       preferencia: "rutas",
       claveEvento: `ruta-publicada:${ruta._id.toString()}`,
       titulo: "Nueva ruta para explorar",
       mensaje: `${ruta.nombre} ya está disponible en Xendaria.`,
       enlace: "/rutas",
     });
+
+    if (!resultado.disponible) {
+      console.warn(
+        "[notificarRutaPublicada] Las credenciales VAPID no estan configuradas"
+      );
+    } else if (resultado.sinDestinatarios) {
+      console.warn(
+        `[notificarRutaPublicada] Sin dispositivos disponibles para ${ruta.nombre}`
+      );
+    } else if (!resultado.enviados && !resultado.duplicado) {
+      console.warn(
+        `[notificarRutaPublicada] No se pudo entregar la notificacion de ${ruta.nombre}`
+      );
+    }
   } catch (error) {
     console.error("[notificarRutaPublicada]", error);
   }
@@ -92,14 +106,7 @@ export async function crearRuta(req, res) {
 
 export async function editarRuta(req, res) {
   try {
-    const rutaAnterior = await serviceRutas.getRutaById(req.params.idRuta, {
-      incluirInactivas: true,
-    });
     const ruta = await serviceRutas.editarRuta(req.params.idRuta, req.body);
-
-    if (rutaAnterior?.activa === false && ruta?.activa !== false) {
-      await notificarRutaPublicada(ruta);
-    }
 
     return res.status(200).json(ruta);
   } catch (error) {
