@@ -126,6 +126,7 @@ function crearPuntoDesdeBody(body) {
     descripcion: body.descripcion || "",
     descripcion_completa: body.descripcion_completa || "",
     direccion: body.direccion || "",
+    link: body.link || "",
     insignia: body.insignia || null,
     activo: body.activo !== false,
   };

@@ -6,6 +6,7 @@ import { OAuth2Client } from "google-auth-library";
 import * as emailService from '../../services/email.service.js'
 import { consultarStreetViewMetadata } from "../../services/streetview.service.js";
 import { emitRankingUpdated } from "../../services/socket.service.js";
+import * as notificacionesService from "../../services/notificaciones.service.js";
 
 
 
@@ -81,11 +82,19 @@ export async function loginGoogle(req, res) {
         seguidores: [],
         siguiendo: [],
         configuracion: serviceUsuarios.normalizarConfiguracionUsuario(),
+        activo: true,
         role: "user"
       };
       const { insertedId } = await serviceUsuarios.guardarUsuario(nuevo);
       usuario = { ...nuevo, _id: insertedId };
     } else {
+      if (usuario.activo === false) {
+        return res.status(403).json({
+          message:
+            "Esta cuenta está desactivada. Escribí a xendariaoficial@gmail.com si querés reactivarla.",
+        });
+      }
+
       const dataGoogle = {
         fotoGoogle: foto,
       };
@@ -179,6 +188,10 @@ export async function getUsuariosById(req, res) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    if (usuario.activo === false && req.user?.role !== "admin") {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
     usuario = await serviceUsuarios.ocultarRelacionesAdministradores(usuario);
     res.status(200).json(prepararUsuarioParaRespuesta(usuario, req, id));
   } catch (e) {
@@ -214,6 +227,7 @@ export async function nuevoUsuario(req, res) {
       seguidores: [],
       siguiendo: [],
       configuracion: serviceUsuarios.normalizarConfiguracionUsuario(),
+      activo: true,
       role: "user"
     };
 
@@ -307,6 +321,60 @@ export async function editarUsuario(req, res) {
   } catch (err) {
     console.error("[editarUsuario]", err);
     res.status(500).json({ message: "No se editó el usuario" });
+  }
+}
+
+export async function desactivarCuenta(req, res) {
+  try {
+    const id = req.params.id;
+
+    if (!usuarioPuedeGestionar(req, id)) {
+      return res.status(403).json({
+        message: "No podés desactivar la cuenta de otro usuario",
+      });
+    }
+
+    if (String(req.user?.role || "").toLowerCase() === "admin") {
+      return res.status(400).json({
+        message: "Una cuenta administradora no se puede desactivar desde la app",
+      });
+    }
+
+    const resultado = await serviceUsuarios.desactivarUsuario(id);
+    if (!resultado.matchedCount) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    return res.status(200).json({
+      message:
+        "Tu cuenta fue desactivada. Escribí a xendariaoficial@gmail.com si querés reactivarla o eliminarla permanentemente.",
+    });
+  } catch (error) {
+    console.error("[desactivarCuenta]", error);
+    return res.status(500).json({
+      message: "No se pudo desactivar la cuenta",
+    });
+  }
+}
+
+export async function reactivarCuenta(req, res) {
+  try {
+    const resultado = await serviceUsuarios.reactivarUsuario(req.params.id);
+
+    if (!resultado.matchedCount) {
+      return res.status(404).json({
+        message: "No se encontró una cuenta desactivada con ese usuario",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Cuenta reactivada correctamente",
+    });
+  } catch (error) {
+    console.error("[reactivarCuenta]", error);
+    return res.status(500).json({
+      message: "No se pudo reactivar la cuenta",
+    });
   }
 }
 
@@ -486,6 +554,13 @@ export async function login(req, res) {
 
     if (!usuario) {
       return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    if (usuario.activo === false) {
+      return res.status(403).json({
+        message:
+          "Esta cuenta está desactivada. Escribí a xendariaoficial@gmail.com si querés reactivarla.",
+      });
     }
 
     const valido = await bcrypt.compare(password.trim(), usuario.password.trim());
@@ -1065,6 +1140,12 @@ export async function registrarPuntoVisitado(req, res) {
         idUsuario,
         idPunto,
       });
+
+      try {
+        await notificacionesService.sincronizarPosicionRanking(idUsuario);
+      } catch (error) {
+        console.error("[sincronizarPosicionRanking]", error);
+      }
     }
 
     return res.status(resultado.yaVisitado ? 200 : 201).json({

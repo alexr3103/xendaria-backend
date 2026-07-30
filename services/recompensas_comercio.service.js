@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { getDB } from "./db.js";
+import * as notificacionesService from "./notificaciones.service.js";
 
 const CATEGORIA_COMERCIOS = "comercios";
 
@@ -131,7 +132,10 @@ export async function asegurarIndicesRecompensasComercio() {
 }
 
 export async function guardarConfiguracionRecompensa(idPunto, data) {
-  await getPuntoComercio(idPunto);
+  const punto = await getPuntoComercio(idPunto);
+  const configuracionAnterior = await configuracionesCollection().findOne({
+    idPunto: new ObjectId(idPunto),
+  });
   const configuracion = prepararConfiguracion(data);
   const ahora = new Date();
 
@@ -149,6 +153,23 @@ export async function guardarConfiguracionRecompensa(idPunto, data) {
     },
     { upsert: true }
   );
+
+  if (
+    configuracion.activa &&
+    (!configuracionAnterior || configuracionAnterior.activa === false)
+  ) {
+    try {
+      await notificacionesService.enviarPushMasivo({
+        preferencia: "recompensas",
+        claveEvento: `recompensa-publicada:${idPunto}:${ahora.toISOString()}`,
+        titulo: "Nueva recompensa disponible",
+        mensaje: `${punto.nombre} sumó un beneficio para tu próxima visita.`,
+        enlace: "/",
+      });
+    } catch (error) {
+      console.error("[notificarRecompensaPublicada]", error);
+    }
+  }
 
   return getConfiguracionRecompensaAdmin(idPunto);
 }

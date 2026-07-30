@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
+import { ObjectId } from "mongodb";
+import { getDB } from "../services/db.js";
 
-export function verifyToken(req, res, next) {
+export async function verifyToken(req, res, next) {
   try {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
@@ -23,8 +25,22 @@ export function verifyToken(req, res, next) {
     // Verificamos el token con la misma secret que usás en createToken()
     const decoded = jwt.verify(token, secret);
 
-    // Guardamos el usuario decodificado en la request para uso posterior
-    req.user = decoded;
+    const usuario = await getDB().collection("usuarios").findOne(
+      { _id: new ObjectId(decoded.id) },
+      { projection: { activo: 1, role: 1 } }
+    );
+
+    if (!usuario || usuario.activo === false) {
+      return res.status(401).json({
+        message: "La cuenta ya no está activa",
+      });
+    }
+
+    // El rol se lee de la base para que los permisos no dependan de un token viejo.
+    req.user = {
+      ...decoded,
+      role: usuario.role || decoded.role,
+    };
     next();
 
   } catch (err) {

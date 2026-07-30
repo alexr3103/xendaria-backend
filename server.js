@@ -18,6 +18,7 @@ import { asegurarIndicesRutas } from "./services/rutas_recomendadas.service.js";
 import { asegurarIndicesTitulos } from "./services/titulos.service.js";
 import { asegurarIndicesComercios } from "./services/comercios.service.js";
 import { asegurarIndicesRecompensasComercio } from "./services/recompensas_comercio.service.js";
+import { asegurarIndicesNotificaciones } from "./services/notificaciones.service.js";
 import { initSocket } from "./services/socket.service.js";
 import PuntosApiRouter from "./api/routes/routes.api.puntos_visitables.js";
 import UsuariosApiRouter from "./api/routes/routes.api.usuarios.js";
@@ -33,6 +34,7 @@ import RutasApiRouter from "./api/routes/routes.api.rutas_recomendadas.js";
 import DashboardApiRouter from "./api/routes/routes.api.dashboard.js";
 import TitulosApiRouter from "./api/routes/routes.api.titulos.js";
 import ComerciosApiRouter from "./api/routes/routes.api.comercios.js";
+import NotificacionesApiRouter from "./api/routes/routes.api.notificaciones.js";
 import PuntosRouter from "./routes/puntos_visitables.route.js";
 import UsuariosRouter from "./routes/usuarios.route.js";
 import cors from "cors";
@@ -74,6 +76,7 @@ await asegurarIndicesRutas();
 await asegurarIndicesTitulos();
 await asegurarIndicesComercios();
 await asegurarIndicesRecompensasComercio();
+await asegurarIndicesNotificaciones();
 
 // Rutas
 app.use("/api/puntos", PuntosApiRouter);
@@ -90,6 +93,7 @@ app.use("/api/rutas", RutasApiRouter);
 app.use("/api/admin", DashboardApiRouter);
 app.use("/api/titulos", TitulosApiRouter);
 app.use("/api/comercios", ComerciosApiRouter);
+app.use("/api/notificaciones", NotificacionesApiRouter);
 app.use("/puntos", PuntosRouter);
 app.use("/usuarios", UsuariosRouter);
 //app.get("/api/health", (_req, res) => {

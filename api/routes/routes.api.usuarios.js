@@ -36,6 +36,14 @@ route.delete(
 route.get("/:id", verifyToken, validateObjectId("id"), controllers.getUsuariosById);
 route.delete("/:id", verifyToken, requireAdmin, validateObjectId("id"), controllers.eliminarUsuario);
 route.patch("/:id/password", verifyToken, validateObjectId("id"), controllers.cambiarPasswordUsuario);
+route.patch("/:id/desactivar", verifyToken, validateObjectId("id"), controllers.desactivarCuenta);
+route.patch(
+  "/:id/reactivar",
+  verifyToken,
+  requireAdmin,
+  validateObjectId("id"),
+  controllers.reactivarCuenta
+);
 route.patch("/:id", verifyToken, validateObjectId("id"), controllers.editarUsuario);
 /* route.put("/:id", verifyToken, controllers.reemplazarUsuario); */
 

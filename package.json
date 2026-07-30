@@ -17,7 +17,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "google-auth-library": "^10.5.0",
+    "google-auth-library": "^10.9.1",
     "jsonwebtoken": "^9.0.2",
     "mapbox-gl": "^3.15.0",
     "mercadopago": "^3.2.0",
@@ -25,14 +25,15 @@
     "multer": "^2.1.1",
     "node-fetch": "^2.7.0",
     "nodemailer": "^9.0.3",
-    "nodemon": "^3.1.11",
     "resend": "^6.17.2",
     "socket.io": "^4.8.3",
+    "web-push": "^3.6.7",
     "yup": "^1.7.1"
   },
   "description": "",
   "devDependencies": {
     "autoprefixer": "^10.4.21",
+    "nodemon": "^3.1.14",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.15"
   }

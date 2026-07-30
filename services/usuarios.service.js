@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { getDB } from "./db.js";
 import * as servicePuntos from "./puntos_visitables.service.js";
 import * as serviceVisitas from "./visitas.service.js";
+import * as notificacionesService from "./notificaciones.service.js";
 
 function collection() {
   const db = getDB();
@@ -26,6 +27,8 @@ export const CONFIGURACION_USUARIO_DEFAULT = {
     puntosCercanos: true,
     insignias: true,
     recompensas: true,
+    rutas: false,
+    compras: false,
   },
 };
 
@@ -236,6 +239,45 @@ export async function guardarUsuario(usuario) {
   return collection().insertOne(usuarioAGuardar);
 }
 
+export async function desactivarUsuario(id) {
+  const usuarioId = new ObjectId(id);
+  const usuario = await collection().findOne(
+    { _id: usuarioId },
+    { projection: { _id: 1, role: 1 } }
+  );
+
+  if (!usuario) return { matchedCount: 0, modifiedCount: 0 };
+
+  return collection().updateOne(
+    { _id: usuarioId },
+    {
+      $set: {
+        activo: false,
+        desactivadoEn: new Date(),
+      },
+    }
+  );
+}
+
+export async function reactivarUsuario(id) {
+  return collection().updateOne(
+    {
+      _id: new ObjectId(id),
+      role: { $not: /^admin$/i },
+      activo: false,
+    },
+    {
+      $set: {
+        activo: true,
+        reactivadoEn: new Date(),
+      },
+      $unset: {
+        desactivadoEn: "",
+      },
+    }
+  );
+}
+
 export async function eliminarUsuario(id) {
   const usuarioId = new ObjectId(id);
   const usuario = await collection().findOne(
@@ -248,6 +290,7 @@ export async function eliminarUsuario(id) {
   }
 
   const puntosResult = await servicePuntos.eliminarPuntosPropiosPorUsuario(id);
+  await notificacionesService.eliminarDatosNotificacionesUsuario(id);
   await collection().updateMany(
     {},
     {
@@ -281,6 +324,7 @@ export async function buscarUsuariosComunidad(filter = {}, idUsuarioActual) {
   const condiciones = [
     { _id: { $ne: new ObjectId(idUsuarioActual) } },
     { role: { $not: /^admin$/i } },
+    { activo: { $ne: false } },
     { "configuracion.perfilPublico": { $ne: false } },
   ];
 
@@ -335,6 +379,7 @@ export async function getComunidadUsuario(idUsuario) {
           {
             _id: { $in: ids.map((id) => new ObjectId(id)) },
             role: { $not: /^admin$/i },
+            activo: { $ne: false },
           },
           {
             projection: {
@@ -387,7 +432,8 @@ export async function seguirUsuario(idUsuario, idObjetivo) {
 
   if (
     String(usuario.role || "").toLowerCase() === "admin" ||
-    String(objetivo.role || "").toLowerCase() === "admin"
+    String(objetivo.role || "").toLowerCase() === "admin" ||
+    objetivo.activo === false
   ) {
     const error = new Error("Usuario no encontrado");
     error.status = 404;
@@ -401,7 +447,7 @@ export async function seguirUsuario(idUsuario, idObjetivo) {
     throw error;
   }
 
-  await Promise.all([
+  const [resultadoSiguiendo] = await Promise.all([
     collection().updateOne(
       { _id: usuarioId },
       { $addToSet: { siguiendo: objetivoId } }
@@ -414,6 +460,24 @@ export async function seguirUsuario(idUsuario, idObjetivo) {
 
   const usuarioActualizado = await collection().findOne({ _id: usuarioId });
   const objetivoActualizado = await collection().findOne({ _id: objetivoId });
+
+  if (resultadoSiguiendo.modifiedCount > 0) {
+    try {
+      await notificacionesService.crearNotificacionUsuario({
+        idUsuario: objetivoId,
+        tipo: "seguidor",
+        titulo: "Nuevo seguidor",
+        mensaje: `${usuarioActualizado.nombre || "Una persona"} empezó a seguirte.`,
+        enlace: `/perfil/${usuarioId.toString()}`,
+        metadata: {
+          idSeguidor: usuarioId.toString(),
+        },
+      });
+    } catch (error) {
+      console.error("[notificarNuevoSeguidor]", error);
+    }
+  }
+
   const idsAdministradores = await getIdsAdministradores();
   return serializarUsuarioComunidad(
     objetivoActualizado,

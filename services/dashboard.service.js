@@ -39,6 +39,10 @@ function visitasCollection() {
   return db().collection("visitas");
 }
 
+function solicitudesComercioCollection() {
+  return db().collection("solicitudes_comercio");
+}
+
 function normalizarNumero(valor = 0) {
   return Number(valor || 0);
 }
@@ -57,6 +61,7 @@ function etapasUsuarioRegular() {
     {
       $match: {
         "usuario.role": { $not: /^admin$/i },
+        "usuario.activo": { $ne: false },
       },
     },
   ];
@@ -254,6 +259,45 @@ async function getMetricasOrdenes() {
   };
 }
 
+async function getMetricasComercios() {
+  const estados = {
+    pendiente: 0,
+    contactado: 0,
+    aprobado: 0,
+    rechazado: 0,
+  };
+
+  const resultados = await solicitudesComercioCollection()
+    .aggregate([
+      {
+        $group: {
+          _id: "$estado",
+          total: { $sum: 1 },
+        },
+      },
+    ])
+    .toArray();
+
+  resultados.forEach((item) => {
+    if (Object.prototype.hasOwnProperty.call(estados, item._id)) {
+      estados[item._id] = normalizarNumero(item.total);
+    }
+  });
+
+  const desde = new Date();
+  desde.setDate(desde.getDate() - 7);
+  const recientes = await solicitudesComercioCollection().countDocuments({
+    createdAt: { $gte: desde },
+  });
+
+  return {
+    total: Object.values(estados).reduce((acc, valor) => acc + valor, 0),
+    porEstado: estados,
+    porGestionar: estados.pendiente + estados.contactado,
+    recientes,
+  };
+}
+
 async function getMetricasCalificaciones() {
   const [metricas = {}] = await calificacionesCollection()
     .aggregate([
@@ -426,6 +470,7 @@ async function getActividadReciente() {
 }
 
 function construirAlertas({
+  comercios,
   puntos,
   rutas,
   productos,
@@ -433,6 +478,15 @@ function construirAlertas({
   rutasConPuntosInactivos,
 }) {
   return [
+    comercios.porEstado.pendiente > 0 &&
+      alerta(
+        "solicitudes_comercio_pendientes",
+        "Nuevas solicitudes comerciales",
+        comercios.porEstado.pendiente,
+        "Revisalas primero: sostienen la visibilidad de comercios en Xendaria.",
+        "/admin/comercios",
+        "warning"
+      ),
     puntos.sinFoto > 0 &&
       alerta(
         "puntos_sin_foto",
@@ -515,6 +569,7 @@ export async function getDashboardAdmin() {
     rutas,
     productos,
     ordenes,
+    comercios,
     calificaciones,
     totalVisitas,
     topPuntosVisitados,
@@ -531,6 +586,7 @@ export async function getDashboardAdmin() {
     getMetricasRutas(),
     getMetricasProductos(),
     getMetricasOrdenes(),
+    getMetricasComercios(),
     getMetricasCalificaciones(),
     contarActividadUsuariosRegulares(visitasCollection()),
     rankingService.getRankingLugares({ limit: 5 }),
@@ -549,6 +605,7 @@ export async function getDashboardAdmin() {
       rutas,
       productos,
       ordenes,
+      comercios,
       visitas: {
         total: totalVisitas,
       },
@@ -560,6 +617,7 @@ export async function getDashboardAdmin() {
     topPuntosCalificados,
     categoriasMasVisitadas,
     alertas: construirAlertas({
+      comercios,
       puntos,
       rutas,
       productos,

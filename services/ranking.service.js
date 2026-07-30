@@ -29,6 +29,7 @@ function getParticipaRankingMatch() {
   return {
     "usuario.configuracion.mostrarActividadRanking": { $ne: false },
     "usuario.role": { $not: /^admin$/i },
+    "usuario.activo": { $ne: false },
   };
 }
 
@@ -95,6 +96,13 @@ export async function getMiPosicionRanking(idUsuario) {
     };
   }
 
+  if (usuario.activo === false) {
+    return {
+      visible: false,
+      message: "Esta cuenta está desactivada.",
+    };
+  }
+
   if (usuario.configuracion?.mostrarActividadRanking === false) {
     return {
       visible: false,
@@ -146,6 +154,7 @@ export async function getRankingLugares({ limit = 20 } = {}) {
       {
         $match: {
           "usuario.role": { $not: /^admin$/i },
+          "usuario.activo": { $ne: false },
         },
       },
       {
@@ -222,6 +231,7 @@ export async function getRankingLugaresMejorVotados({
     {
       $match: {
         "usuario.role": { $not: /^admin$/i },
+        "usuario.activo": { $ne: false },
       },
     },
     {
@@ -275,6 +285,7 @@ export async function getRankingLugaresMejorVotados({
           {
             $match: {
               "usuario.role": { $not: /^admin$/i },
+              "usuario.activo": { $ne: false },
             },
           },
           { $count: "total" },

@@ -116,6 +116,29 @@ const historiaSchema = yup.object({
     .nullable(),
 });
 
+const recompensaComercioSchema = yup.object({
+  beneficio: yup
+    .string()
+    .trim()
+    .max(180)
+    .required(),
+
+  codigo: yup
+    .string()
+    .trim()
+    .max(60)
+    .required(),
+
+  venceEn: yup
+    .string()
+    .trim()
+    .required(),
+
+  activa: yup
+    .boolean()
+    .default(true),
+}).default(undefined);
+
 export const puntoSchema = yup.object({
   categoria: yup
     .string()
@@ -183,10 +206,23 @@ export const puntoSchema = yup.object({
     .string()
     .optional(),
 
+  link: yup
+    .string()
+    .trim()
+    .transform((value, originalValue) =>
+      originalValue === "" ? null : value
+    )
+    .url("El sitio web debe ser una URL válida")
+    .nullable()
+    .optional(),
+
   insignia: yup
     .string()
     .url()
     .nullable(),
+
+  recompensaComercio:
+    recompensaComercioSchema.nullable().optional(),
 
   _id: yup
     .string()

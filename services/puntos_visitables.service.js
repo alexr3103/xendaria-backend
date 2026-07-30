@@ -536,6 +536,7 @@ function fusionarDatosPunto(principal = {}, puntos = []) {
       ...todos.map((punto) => punto.descripcion_completa)
     ),
     direccion: principal.direccion || todos.find((punto) => punto.direccion)?.direccion || "",
+    link: principal.link || todos.find((punto) => punto.link)?.link || "",
     foto: principal.foto || todos.find((punto) => punto.foto)?.foto || "",
     insignia,
     vista360,

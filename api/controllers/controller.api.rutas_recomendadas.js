@@ -1,4 +1,21 @@
 import * as serviceRutas from "../../services/rutas_recomendadas.service.js";
+import * as notificacionesService from "../../services/notificaciones.service.js";
+
+async function notificarRutaPublicada(ruta) {
+  if (!ruta || ruta.activa === false) return;
+
+  try {
+    await notificacionesService.enviarPushMasivo({
+      preferencia: "rutas",
+      claveEvento: `ruta-publicada:${ruta._id.toString()}`,
+      titulo: "Nueva ruta para explorar",
+      mensaje: `${ruta.nombre} ya está disponible en Xendaria.`,
+      enlace: "/rutas",
+    });
+  } catch (error) {
+    console.error("[notificarRutaPublicada]", error);
+  }
+}
 
 function responderError(res, error, fallback) {
   return res.status(error.status || 500).json({
@@ -64,6 +81,7 @@ export async function getRutaById(req, res) {
 export async function crearRuta(req, res) {
   try {
     const ruta = await serviceRutas.crearRuta(req.body, req.user.id);
+    await notificarRutaPublicada(ruta);
 
     return res.status(201).json(ruta);
   } catch (error) {
@@ -74,7 +92,14 @@ export async function crearRuta(req, res) {
 
 export async function editarRuta(req, res) {
   try {
+    const rutaAnterior = await serviceRutas.getRutaById(req.params.idRuta, {
+      incluirInactivas: true,
+    });
     const ruta = await serviceRutas.editarRuta(req.params.idRuta, req.body);
+
+    if (rutaAnterior?.activa === false && ruta?.activa !== false) {
+      await notificarRutaPublicada(ruta);
+    }
 
     return res.status(200).json(ruta);
   } catch (error) {

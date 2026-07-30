@@ -5,6 +5,7 @@ import * as emailService from "./email.service.js";
 import * as usuariosService from "./usuarios.service.js";
 import * as mercadopagoService from "./mercadopago.service.js";
 import * as enviosService from "./envios.service.js";
+import * as notificacionesService from "./notificaciones.service.js";
 
 function collection() {
   const db = getDB();
@@ -18,6 +19,85 @@ const ESTADOS_ORDEN_ADMIN = new Set([
   "enviada",
 ]);
 const ESTADOS_ORDEN_VISIBLES = ["pagada", "procesando", "enviada"];
+
+const MENSAJES_ESTADO_ORDEN = {
+  pagada: {
+    titulo: "Pago confirmado",
+    getMensaje: (orden) =>
+      `El pago de tu compra ${orden.numeroCompra} fue aprobado.`,
+  },
+  procesando: {
+    titulo: "Estamos preparando tu compra",
+    getMensaje: (orden) =>
+      `La compra ${orden.numeroCompra} ya está en preparación.`,
+  },
+  enviada: {
+    titulo: "Tu compra fue enviada",
+    getMensaje: (orden) =>
+      `La compra ${orden.numeroCompra} ya está en camino.`,
+  },
+};
+
+async function notificarEstadoOrden(orden, estado) {
+  const contenido = MENSAJES_ESTADO_ORDEN[estado];
+  if (!orden?.idUsuario || !contenido) return;
+
+  try {
+    await notificacionesService.crearNotificacionUsuario({
+      idUsuario: orden.idUsuario,
+      tipo: "pedido",
+      titulo: contenido.titulo,
+      mensaje: contenido.getMensaje(orden),
+      enlace: "/perfil",
+      metadata: {
+        idOrden: orden._id.toString(),
+        numeroCompra: orden.numeroCompra,
+        estado,
+      },
+      claveEvento: `orden:${orden._id.toString()}:${estado}`,
+      pushPreferencia: "compras",
+    });
+  } catch (error) {
+    console.error("[notificarEstadoOrden]", error);
+  }
+}
+
+async function notificarPagoNoAprobado(checkout, pago) {
+  if (!checkout?.idUsuario || !ObjectId.isValid(checkout.idUsuario)) return;
+
+  const pagoPendiente = new Set([
+    "pending",
+    "in_process",
+    "in_mediation",
+  ]).has(pago.status);
+  const titulo = pagoPendiente ? "Pago pendiente" : "Pago no completado";
+  const mensaje = pagoPendiente
+    ? "MercadoPago todavía está procesando tu pago."
+    : "El pago no pudo completarse. Podés volver a intentarlo desde el carrito.";
+  const identificador =
+    pago.id?.toString() ||
+    pago.external_reference ||
+    checkout.referencia ||
+    Date.now().toString();
+
+  try {
+    await notificacionesService.crearNotificacionUsuario({
+      idUsuario: checkout.idUsuario,
+      tipo: "pago",
+      titulo,
+      mensaje,
+      enlace: "/carrito",
+      metadata: {
+        estado: pago.status || "desconocido",
+        idPago: pago.id?.toString() || null,
+      },
+      claveEvento: `pago:${identificador}:${pago.status || "desconocido"}`,
+      pushPreferencia: "compras",
+    });
+  } catch (error) {
+    console.error("[notificarPagoNoAprobado]", error);
+  }
+}
 
 function mismaVariante(varianteA, varianteB) {
   const colorA = varianteA?.color || null;
@@ -225,6 +305,10 @@ export async function actualizarEstadoOrden(idOrden, estado) {
     throw error;
   }
 
+  const ordenActual = await getOrdenById(idOrden);
+  if (!ordenActual) return null;
+  if (ordenActual.estado === estado) return ordenActual;
+
   const set = {
     estado,
     updatedAt: new Date(),
@@ -243,11 +327,11 @@ export async function actualizarEstadoOrden(idOrden, estado) {
     { $set: set }
   );
 
-  if (!resultado.matchedCount) {
-    return null;
-  }
+  if (!resultado.matchedCount) return null;
 
-  return getOrdenById(idOrden);
+  const ordenActualizada = await getOrdenById(idOrden);
+  await notificarEstadoOrden(ordenActualizada, estado);
+  return ordenActualizada;
 }
 
 export async function crearPreferenciaMercadoPagoDesdeCarrito(idUsuario, datosEnvio) {
@@ -362,6 +446,7 @@ async function crearOrdenDesdeCheckoutPagado(checkout, pago) {
     emailService.enviarConfirmacionCompra(usuario.email, ordenCreada);
   }
 
+  await notificarEstadoOrden(ordenCreada, "pagada");
   return ordenCreada;
 }
 
@@ -411,17 +496,20 @@ async function actualizarOrdenExistentePagada(pago) {
     if (usuario?.email) {
       emailService.enviarConfirmacionCompra(usuario.email, ordenActualizada);
     }
+
+    await notificarEstadoOrden(ordenActualizada, "pagada");
   }
 
   return ordenActualizada;
 }
 
 export async function actualizarOrdenDesdePagoMercadoPago(pago) {
+  const checkout = obtenerCheckoutDesdePago(pago);
+
   if (pago.status !== "approved") {
+    await notificarPagoNoAprobado(checkout, pago);
     return null;
   }
-
-  const checkout = obtenerCheckoutDesdePago(pago);
 
   if (checkout) {
     return crearOrdenDesdeCheckoutPagado(checkout, pago);
