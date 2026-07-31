@@ -6,8 +6,7 @@ const TIPOS_BENEFICIO = new Set([
   "descuento",
   "cortesia",
   "primera_visita",
-  "ruta",
-  "otro",
+  "contacto_equipo",
 ]);
 const ESTADOS = new Set(["pendiente", "contactado", "aprobado", "rechazado"]);
 
