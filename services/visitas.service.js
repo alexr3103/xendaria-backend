@@ -2,6 +2,123 @@ import { ObjectId } from "mongodb";
 import { getDB } from "./db.js";
 import * as servicePuntos from "./puntos_visitables.service.js";
 
+const RADIO_VISITA_DEFAULT_METROS = 100;
+const RADIO_VISITA_ESPACIOS_VERDES_METROS = 200;
+const RADIO_TIERRA_METROS = 6371000;
+const CATEGORIAS_ESPACIOS_VERDES = new Set([
+  "espacios_verdes_publicos",
+  "espacios_verdes_privados",
+]);
+
+function crearErrorUbicacion(message, status) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+function getCategoriasPunto(punto = {}) {
+  return [
+    ...(Array.isArray(punto.categorias) ? punto.categorias : []),
+    punto.categoria,
+  ].filter(Boolean);
+}
+
+function getRadioVisitaMetros(punto = {}) {
+  const esEspacioVerde = getCategoriasPunto(punto).some((categoria) =>
+    CATEGORIAS_ESPACIOS_VERDES.has(categoria)
+  );
+
+  return esEspacioVerde
+    ? RADIO_VISITA_ESPACIOS_VERDES_METROS
+    : RADIO_VISITA_DEFAULT_METROS;
+}
+
+function normalizarCoordenadasActuales(ubicacionActual = {}) {
+  const lat = Number(
+    ubicacionActual.lat ??
+      ubicacionActual.latitude ??
+      ubicacionActual.coords?.lat ??
+      ubicacionActual.coords?.latitude
+  );
+  const lng = Number(
+    ubicacionActual.lng ??
+      ubicacionActual.lon ??
+      ubicacionActual.longitude ??
+      ubicacionActual.coords?.lng ??
+      ubicacionActual.coords?.lon ??
+      ubicacionActual.coords?.longitude
+  );
+
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180
+  ) {
+    throw crearErrorUbicacion(
+      "Se requiere una ubicacion actual valida para registrar la visita",
+      400
+    );
+  }
+
+  return { lat, lng };
+}
+
+function getCoordenadasPunto(punto = {}) {
+  const lat = Number(punto.lat ?? punto.ubicacion?.coordinates?.[1]);
+  const lng = Number(punto.lon ?? punto.ubicacion?.coordinates?.[0]);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw crearErrorUbicacion(
+      "El punto no tiene una ubicacion valida",
+      400
+    );
+  }
+
+  return { lat, lng };
+}
+
+function calcularDistanciaMetros(origen, destino) {
+  const lat1 = (origen.lat * Math.PI) / 180;
+  const lat2 = (destino.lat * Math.PI) / 180;
+  const diferenciaLat = ((destino.lat - origen.lat) * Math.PI) / 180;
+  const diferenciaLng = ((destino.lng - origen.lng) * Math.PI) / 180;
+
+  const a =
+    Math.sin(diferenciaLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(diferenciaLng / 2) ** 2;
+
+  return (
+    RADIO_TIERRA_METROS *
+    2 *
+    Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  );
+}
+
+function validarCercaniaPunto(punto, ubicacionActual) {
+  const coordenadasUsuario = normalizarCoordenadasActuales(ubicacionActual);
+  const coordenadasPunto = getCoordenadasPunto(punto);
+  const distanciaMetros = calcularDistanciaMetros(
+    coordenadasUsuario,
+    coordenadasPunto
+  );
+  const radioPermitidoMetros = getRadioVisitaMetros(punto);
+
+  if (distanciaMetros > radioPermitidoMetros) {
+    throw crearErrorUbicacion(
+      `Necesitas estar a menos de ${radioPermitidoMetros} metros del punto para registrar la visita`,
+      403
+    );
+  }
+
+  return {
+    distanciaMetros: Math.round(distanciaMetros),
+    radioPermitidoMetros,
+  };
+}
+
 function collection() {
   return getDB().collection("visitas");
 }
@@ -107,9 +224,11 @@ export async function sincronizarVisitasDesdeUsuarios() {
   return { upserted: resultado.upsertedCount || 0 };
 }
 
-export async function registrarVisita(idUsuario, idPunto) {
+export async function registrarVisita(idUsuario, idPunto, ubicacionActual) {
   const punto = await servicePuntos.getPuntosById(idPunto);
   if (!punto) return { punto: null, nuevaVisita: false };
+
+  const cercania = validarCercaniaPunto(punto, ubicacionActual);
 
   const ahora = new Date();
   const resultado = await collection().updateOne(
@@ -132,6 +251,7 @@ export async function registrarVisita(idUsuario, idPunto) {
   return {
     punto,
     nuevaVisita: Boolean(resultado.upsertedId),
+    ...cercania,
   };
 }
 

@@ -80,6 +80,25 @@ export async function getMisTitulos(req, res) {
   }
 }
 
+export async function seleccionarMiTitulo(req, res) {
+  try {
+    const titulos = await serviceTitulos.seleccionarTituloUsuario(
+      req.user.id,
+      req.body?.idTitulo
+    );
+
+    return res.status(200).json({
+      message: "Titulo elegido correctamente",
+      ...titulos,
+    });
+  } catch (err) {
+    console.error("[seleccionarMiTitulo]", err);
+    return res
+      .status(err.status || 500)
+      .json({ message: err.message || "No se pudo elegir el titulo" });
+  }
+}
+
 export async function getTitulosUsuario(req, res) {
   try {
     const { idUsuario } = req.params;

@@ -7,6 +7,7 @@ const route = Router();
 
 route.get("/", verifyToken, controllers.getTitulos);
 route.get("/mios", verifyToken, controllers.getMisTitulos);
+route.patch("/mios/seleccion", verifyToken, controllers.seleccionarMiTitulo);
 route.get(
   "/usuario/:idUsuario",
   verifyToken,

@@ -816,11 +816,19 @@ export async function getAlbumInsigniasUsuario(idUsuario) {
   };
 }
 
-export async function registrarPuntoVisitado(idUsuario, idPunto) {
+export async function registrarPuntoVisitado(
+  idUsuario,
+  idPunto,
+  ubicacionActual
+) {
   const usuario = await getUsuariosById(idUsuario);
   if (!usuario) return null;
 
-  const registro = await serviceVisitas.registrarVisita(idUsuario, idPunto);
+  const registro = await serviceVisitas.registrarVisita(
+    idUsuario,
+    idPunto,
+    ubicacionActual
+  );
   if (!registro.punto) return { usuario, punto: null };
 
   const visitas = normalizarListaVisitas(usuario.puntos_visitados);
@@ -867,6 +875,8 @@ export async function registrarPuntoVisitado(idUsuario, idPunto) {
     nuevaVisita: registro.nuevaVisita && !yaVisitadoEnUsuario,
     visitados: visitas,
     totalVisitados: visitas.length,
+    distanciaMetros: registro.distanciaMetros,
+    radioPermitidoMetros: registro.radioPermitidoMetros,
   };
 }
 

@@ -1152,13 +1152,18 @@ export async function borrarHistorialVisitas(req, res) {
 export async function registrarPuntoVisitado(req, res) {
   const idUsuario = req.params.idUsuario;
   const idPunto = req.body.idPunto;
+  const ubicacionActual = req.body.ubicacionActual;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
     return res.status(403).json({ message: "No podes registrar visitas de otro usuario" });
   }
 
   try {
-    const resultado = await serviceUsuarios.registrarPuntoVisitado(idUsuario, idPunto);
+    const resultado = await serviceUsuarios.registrarPuntoVisitado(
+      idUsuario,
+      idPunto,
+      ubicacionActual
+    );
     if (!resultado) return res.status(404).json({ message: "Usuario no encontrado" });
     if (!resultado.punto) return res.status(404).json({ message: "Punto no encontrado" });
 
@@ -1184,10 +1189,16 @@ export async function registrarPuntoVisitado(req, res) {
       totalVisitados: resultado.totalVisitados,
       visitados: resultado.visitados,
       punto: resultado.punto,
+      distanciaMetros: resultado.distanciaMetros,
+      radioPermitidoMetros: resultado.radioPermitidoMetros,
     });
   } catch (err) {
     console.error("[registrarPuntoVisitado]", err);
-    return res.status(500).json({ message: "Error al registrar punto visitado" });
+    return res.status(err.status || 500).json({
+      message: err.status
+        ? err.message
+        : "Error al registrar punto visitado",
+    });
   }
 }
 

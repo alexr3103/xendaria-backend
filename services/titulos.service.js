@@ -29,49 +29,49 @@ const TITULOS_DEFAULT = [
     categoria: "puntos_populares",
     titulo: "Cazadora de iconos",
     descripcion: "Por visitar lugares populares de la ciudad.",
-    umbral: 10,
+    umbral: 5,
     orden: 10,
   },
   {
     categoria: "paradas_de_bus_turistico",
     titulo: "Guia de recorridos",
     descripcion: "Por visitar puntos conectados al circuito turistico.",
-    umbral: 10,
+    umbral: 5,
     orden: 20,
   },
   {
     categoria: "paseo_de_la_historieta",
     titulo: "Guardiana de vinetas",
     descripcion: "Por visitar lugares vinculados a la historieta.",
-    umbral: 10,
+    umbral: 5,
     orden: 30,
   },
   {
     categoria: "espacios_verdes_publicos",
     titulo: "Guardian de parques",
     descripcion: "Por visitar parques y espacios verdes publicos.",
-    umbral: 10,
+    umbral: 5,
     orden: 40,
   },
   {
     categoria: "espacios_verdes_privados",
     titulo: "Rey de las flores",
     descripcion: "Por visitar jardines y rincones verdes especiales.",
-    umbral: 10,
+    umbral: 5,
     orden: 50,
   },
   {
     categoria: "lugares_de_esparcimiento",
     titulo: "Maestra del paseo",
     descripcion: "Por visitar lugares de recreacion y esparcimiento.",
-    umbral: 10,
+    umbral: 5,
     orden: 60,
   },
   {
     categoria: "curiosos",
     titulo: "Detective de rarezas",
     descripcion: "Por encontrar puntos curiosos de la ciudad.",
-    umbral: 10,
+    umbral: 5,
     orden: 70,
   },
 ];
@@ -200,6 +200,29 @@ export async function asegurarIndicesTitulos() {
     { name: "titulo_activo_orden" }
   );
 
+  for (const titulo of TITULOS_DEFAULT.filter((item) => !item.esDefault)) {
+    const tituloEnNuevoUmbral = await collection().findOne({
+      categoria: titulo.categoria,
+      umbral: titulo.umbral,
+    });
+
+    if (!tituloEnNuevoUmbral) {
+      await collection().updateOne(
+        {
+          categoria: titulo.categoria,
+          titulo: titulo.titulo,
+          umbral: 10,
+        },
+        {
+          $set: {
+            umbral: titulo.umbral,
+            updatedAt: new Date(),
+          },
+        }
+      );
+    }
+  }
+
   const ahora = new Date();
   const operaciones = TITULOS_DEFAULT.map((titulo) => ({
     updateOne: {
@@ -264,9 +287,13 @@ export async function eliminarTitulo(idTitulo) {
 }
 
 export async function getTitulosUsuario(idUsuario) {
-  const [reglas, puntos] = await Promise.all([
+  const [reglas, puntos, usuario] = await Promise.all([
     getTitulos(),
     getPuntosVisitados(idUsuario),
+    usuariosCollection().findOne(
+      { _id: new ObjectId(idUsuario) },
+      { projection: { tituloSeleccionadoId: 1 } }
+    ),
   ]);
 
   const tituloSinVisitas = reglas.find(
@@ -316,23 +343,56 @@ export async function getTitulosUsuario(idUsuario) {
 
   const tituloDefault =
     puntos.length === 0 ? tituloSinVisitas : tituloConVisitas;
-  const tituloActual = desbloqueados[0] || (
-    tituloDefault
-      ? {
-          ...tituloDefault,
-          progreso: puntos.length,
-          porcentaje: 0,
-          desbloqueado: true,
-          esDefault: true,
-        }
-      : null
+  const tituloInicial = tituloDefault
+    ? {
+        ...tituloDefault,
+        progreso: puntos.length,
+        porcentaje: 100,
+        desbloqueado: true,
+        esDefault: true,
+      }
+    : null;
+  const disponibles = [tituloInicial, ...desbloqueados].filter(Boolean);
+  const tituloSeleccionadoId = normalizarId(usuario?.tituloSeleccionadoId);
+  const tituloSeleccionado = disponibles.find(
+    (titulo) => normalizarId(titulo._id) === tituloSeleccionadoId
   );
+  const tituloActual = tituloSeleccionado || desbloqueados[0] || tituloInicial;
 
   return {
     usuarioId: idUsuario,
     tituloActual: tituloActual ? serializarTitulo(tituloActual) : null,
-    desbloqueados,
+    desbloqueados: disponibles.map(serializarTitulo),
     titulos,
     conteoCategorias,
+  };
+}
+
+export async function seleccionarTituloUsuario(idUsuario, idTitulo) {
+  if (!ObjectId.isValid(idTitulo)) {
+    const error = new Error("El titulo seleccionado no es valido");
+    error.status = 400;
+    throw error;
+  }
+
+  const resumen = await getTitulosUsuario(idUsuario);
+  const tituloSeleccionado = resumen.desbloqueados.find(
+    (titulo) => normalizarId(titulo._id) === String(idTitulo)
+  );
+
+  if (!tituloSeleccionado) {
+    const error = new Error("Todavia no desbloqueaste ese titulo");
+    error.status = 403;
+    throw error;
+  }
+
+  await usuariosCollection().updateOne(
+    { _id: new ObjectId(idUsuario) },
+    { $set: { tituloSeleccionadoId: new ObjectId(idTitulo) } }
+  );
+
+  return {
+    ...resumen,
+    tituloActual: tituloSeleccionado,
   };
 }
