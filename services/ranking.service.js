@@ -1,6 +1,8 @@
 import { ObjectId } from "mongodb";
 import { getDB } from "./db.js";
 
+const ADMIN_ROLE_REGEX = /^admin$/i;
+
 function visitasCollection() {
   return getDB().collection("visitas");
 }
@@ -28,7 +30,7 @@ function normalizarUsuarioRanking(item, index) {
 function getParticipaRankingMatch() {
   return {
     "usuario.configuracion.mostrarActividadRanking": { $ne: false },
-    "usuario.role": { $not: /^admin$/i },
+    "usuario.role": { $not: ADMIN_ROLE_REGEX },
     "usuario.activo": { $ne: false },
   };
 }
@@ -153,7 +155,7 @@ export async function getRankingLugares({ limit = 20 } = {}) {
       { $unwind: "$usuario" },
       {
         $match: {
-          "usuario.role": { $not: /^admin$/i },
+          "usuario.role": { $not: ADMIN_ROLE_REGEX },
           "usuario.activo": { $ne: false },
         },
       },
@@ -230,7 +232,7 @@ export async function getRankingLugaresMejorVotados({
     { $unwind: "$usuario" },
     {
       $match: {
-        "usuario.role": { $not: /^admin$/i },
+        "usuario.role": { $not: ADMIN_ROLE_REGEX },
         "usuario.activo": { $ne: false },
       },
     },
@@ -284,7 +286,7 @@ export async function getRankingLugaresMejorVotados({
           { $unwind: "$usuario" },
           {
             $match: {
-              "usuario.role": { $not: /^admin$/i },
+              "usuario.role": { $not: ADMIN_ROLE_REGEX },
               "usuario.activo": { $ne: false },
             },
           },

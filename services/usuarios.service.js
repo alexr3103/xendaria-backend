@@ -6,6 +6,10 @@ import * as servicePuntos from "./puntos_visitables.service.js";
 import * as serviceVisitas from "./visitas.service.js";
 import * as notificacionesService from "./notificaciones.service.js";
 
+const REGEX_SPECIAL_CHARACTERS_REGEX = /[.*+?^${}()|[\]\\]/g;
+const DIACRITIC_LETTERS_REGEX = /[aeiouncAEIOUNC]/g;
+const ADMIN_ROLE_REGEX = /^admin$/i;
+
 function collection() {
   const db = getDB();
   return db.collection("usuarios");
@@ -50,7 +54,7 @@ export function normalizarConfiguracionUsuario(configuracion = {}, configuracion
 
 // Filtros flexibles
 function _escapeRegex(s = "") {
-  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return String(s).replace(REGEX_SPECIAL_CHARACTERS_REGEX, "\\$&");
 }
 
 function _expandDiacritics(s = "") {
@@ -71,7 +75,7 @@ function _expandDiacritics(s = "") {
     C: "[CÇ]",
   };
   const esc = _escapeRegex(s);
-  return esc.replace(/[aeiouncAEIOUNC]/g, (ch) => map[ch] || ch);
+  return esc.replace(DIACRITIC_LETTERS_REGEX, (ch) => map[ch] || ch);
 }
 
 function buildFuzzyRegexes(text = "") {
@@ -107,7 +111,7 @@ function normalizarListaIdsUsuarios(lista = []) {
 async function getIdsAdministradores() {
   const administradores = await collection()
     .find(
-      { role: /^admin$/i },
+      { role: ADMIN_ROLE_REGEX },
       { projection: { _id: 1 } }
     )
     .toArray();
@@ -161,7 +165,7 @@ function serializarUsuarioComunidad(
 }
 
 export async function getUsuarios(filter = {}) {
-  const condiciones = [{ role: { $not: /^admin$/i } }];
+  const condiciones = [{ role: { $not: ADMIN_ROLE_REGEX } }];
 
   if (filter.filtro === "Con favoritos") {
     condiciones.push({ "lugares_favoritos.0": { $exists: true } });
@@ -263,7 +267,7 @@ export async function reactivarUsuario(id) {
   return collection().updateOne(
     {
       _id: new ObjectId(id),
-      role: { $not: /^admin$/i },
+      role: { $not: ADMIN_ROLE_REGEX },
       activo: false,
     },
     {
@@ -323,7 +327,7 @@ export async function buscarUsuariosComunidad(filter = {}, idUsuarioActual) {
 
   const condiciones = [
     { _id: { $ne: new ObjectId(idUsuarioActual) } },
-    { role: { $not: /^admin$/i } },
+    { role: { $not: ADMIN_ROLE_REGEX } },
     { activo: { $ne: false } },
     { "configuracion.perfilPublico": { $ne: false } },
   ];
@@ -378,7 +382,7 @@ export async function getComunidadUsuario(idUsuario) {
         .find(
           {
             _id: { $in: ids.map((id) => new ObjectId(id)) },
-            role: { $not: /^admin$/i },
+            role: { $not: ADMIN_ROLE_REGEX },
             activo: { $ne: false },
           },
           {

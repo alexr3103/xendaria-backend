@@ -4,6 +4,7 @@ import { getDB } from "./db.js";
 import { getRankingUsuarios } from "./ranking.service.js";
 
 const LIMITE_NOTIFICACIONES = 50;
+const ADMIN_ROLE_REGEX = /^admin$/i;
 let webPushConfigurado = false;
 
 function notificacionesCollection() {
@@ -177,7 +178,7 @@ export async function enviarPushUsuario(
     {
       _id: usuarioId,
       activo: { $ne: false },
-      role: { $not: /^admin$/i },
+      role: { $not: ADMIN_ROLE_REGEX },
     },
     { projection: { configuracion: 1 } }
   );
@@ -217,7 +218,7 @@ export async function enviarPushMasivo({
     .find(
       {
         activo: { $ne: false },
-        role: { $not: /^admin$/i },
+        role: { $not: ADMIN_ROLE_REGEX },
         [`configuracion.notificaciones.${preferencia}`]: true,
       },
       { projection: { _id: 1 } }

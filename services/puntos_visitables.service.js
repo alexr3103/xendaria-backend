@@ -1,6 +1,11 @@
 import { ObjectId } from "mongodb";
 import { getDB } from "./db.js";
 
+const REGEX_SPECIAL_CHARACTERS_REGEX = /[.*+?^${}()|[\]\\]/g;
+const DIACRITIC_LETTERS_REGEX = /[aeiouncAEIOUNC]/g;
+const DIACRITICS_REGEX = /[\u0300-\u036f]/g;
+const WHITESPACE_REGEX = /\s+/g;
+
 // Acceso directo a la colección
 function collection() {
   const db = getDB();
@@ -128,7 +133,7 @@ export async function completarMetadatosPuntos() {
 }
 
 function _escapeRegex(s = "") {
-  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return String(s).replace(REGEX_SPECIAL_CHARACTERS_REGEX, "\\$&");
 }
 function _expandDiacritics(s = "") {
   const map = {
@@ -141,7 +146,7 @@ function _expandDiacritics(s = "") {
     c: "[cç]",      C: "[CÇ]",
   };
   const esc = _escapeRegex(s);
-  return esc.replace(/[aeiouncAEIOUNC]/g, ch => map[ch] || ch);
+  return esc.replace(DIACRITIC_LETTERS_REGEX, ch => map[ch] || ch);
 }
 function buildFuzzyRegexes(text = "") {
   const t = text.trim();
@@ -203,9 +208,9 @@ function prepararPuntoParaGuardar(punto = {}) {
 function normalizarNombreDuplicado(value = "") {
   return String(value)
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(DIACRITICS_REGEX, "")
     .toLowerCase()
-    .replace(/\s+/g, " ")
+    .replace(WHITESPACE_REGEX, " ")
     .trim();
 }
 

@@ -1,5 +1,7 @@
 import yup from "yup";
 
+const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
+
 const fotoSchema = yup.object({
   url: yup
     .string()
@@ -32,7 +34,7 @@ const multimediaSchema = yup.object({
   _id: yup
     .string()
     .optional()
-    .matches(/^[0-9a-fA-F]{24}$/, "No es un _id de Mongo valido"),
+    .matches(OBJECT_ID_REGEX, "No es un _id de Mongo valido"),
 
   tipo: yup
     .string()
@@ -227,5 +229,5 @@ export const puntoSchema = yup.object({
   _id: yup
     .string()
     .optional()
-    .matches(/^[0-9a-fA-F]{24}$/, "No es un _id de Mongo valido"),
+    .matches(OBJECT_ID_REGEX, "No es un _id de Mongo valido"),
 });

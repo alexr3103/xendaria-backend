@@ -2,6 +2,7 @@ import { getDB } from "./db.js";
 import * as rankingService from "./ranking.service.js";
 
 const ESTADOS_ORDEN_VISIBLES = ["pagada", "procesando", "enviada"];
+const ADMIN_ROLE_REGEX = /^admin$/i;
 
 function db() {
   return getDB();
@@ -60,7 +61,7 @@ function etapasUsuarioRegular() {
     { $unwind: "$usuario" },
     {
       $match: {
-        "usuario.role": { $not: /^admin$/i },
+        "usuario.role": { $not: ADMIN_ROLE_REGEX },
         "usuario.activo": { $ne: false },
       },
     },
@@ -580,7 +581,7 @@ export async function getDashboardAdmin() {
     actividadReciente,
   ] = await Promise.all([
     db().collection("usuarios").countDocuments({
-      role: { $not: /^admin$/i },
+      role: { $not: ADMIN_ROLE_REGEX },
     }),
     getMetricasPuntos(),
     getMetricasRutas(),

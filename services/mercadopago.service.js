@@ -3,6 +3,10 @@ import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 
 dotenv.config();
 
+const TRAILING_SLASH_REGEX = /\/$/;
+const HTTP_URL_REGEX = /^https?:\/\//i;
+const LOCAL_URL_REGEX = /^(localhost|127\.0\.0\.1)(:\d+)?/i;
+
 function getMercadoPagoClient() {
   if (!process.env.MP_ACCESS_TOKEN) {
     throw new Error("MP_ACCESS_TOKEN no configurado");
@@ -14,10 +18,10 @@ function getMercadoPagoClient() {
 }
 
 function normalizarUrl(url) {
-  const limpia = (url || "").trim().replace(/\/$/, "");
+  const limpia = (url || "").trim().replace(TRAILING_SLASH_REGEX, "");
   if (!limpia) return "";
-  if (/^https?:\/\//i.test(limpia)) return limpia;
-  if (/^(localhost|127\.0\.0\.1)(:\d+)?/i.test(limpia)) {
+  if (HTTP_URL_REGEX.test(limpia)) return limpia;
+  if (LOCAL_URL_REGEX.test(limpia)) {
     return `http://${limpia}`;
   }
   return `https://${limpia}`;

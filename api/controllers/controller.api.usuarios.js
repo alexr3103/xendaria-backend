@@ -18,27 +18,31 @@ const TOKEN_EXPIRATION_ADMIN = "8h";
 const GOOGLE_OAUTH_DUMMY_PASSWORD = "google_oauth_dummy";
 const CATEGORIA_COMERCIOS = "comercios";
 const VERSION_TERMINOS = "2026-07-30";
+const PASSWORD_NUMBER_REGEX = /[0-9]/;
+const PASSWORD_UPPERCASE_REGEX = /[A-Z]/;
+const PASSWORD_SPECIAL_CHARACTER_REGEX = /[!@#$%^&*(),.?":{}|<>_+=-]/;
+const GOOGLE_PROFILE_IMAGE_REGEX = /googleusercontent\.com|ggpht\.com/i;
 const PASSWORD_RULES = [
   {
     test: (value) => String(value || "").length >= 6,
     message: "La contraseña debe tener al menos 6 caracteres",
   },
   {
-    test: (value) => /[0-9]/.test(String(value || "")),
+    test: (value) => PASSWORD_NUMBER_REGEX.test(String(value || "")),
     message: "La contraseña debe tener al menos un número",
   },
   {
-    test: (value) => /[A-Z]/.test(String(value || "")),
+    test: (value) => PASSWORD_UPPERCASE_REGEX.test(String(value || "")),
     message: "La contraseña debe tener al menos una mayúscula",
   },
   {
-    test: (value) => /[!@#$%^&*(),.?":{}|<>_\-+=]/.test(String(value || "")),
+    test: (value) => PASSWORD_SPECIAL_CHARACTER_REGEX.test(String(value || "")),
     message: "La contraseña debe tener al menos un caracter especial",
   },
 ];
 
 function esFotoGoogle(value = "") {
-  return /googleusercontent\.com|ggpht\.com/i.test(String(value));
+  return GOOGLE_PROFILE_IMAGE_REGEX.test(String(value));
 }
 
 function validarPassword(password = "") {

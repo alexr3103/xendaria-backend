@@ -12,6 +12,7 @@ export const CATEGORIAS_RUTAS = [
 ];
 
 const MODOS_RUTA = new Set(["corta", "larga"]);
+const REGEX_SPECIAL_CHARACTERS_REGEX = /[.*+?^${}()|[\]\\]/g;
 
 function collection() {
   return getDB().collection("rutas_recomendadas");
@@ -194,7 +195,9 @@ function getFiltroPublico(query = {}, { incluirInactivas = false } = {}) {
   }
 
   if (query.q && String(query.q).trim()) {
-    const texto = String(query.q).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const texto = String(query.q)
+      .trim()
+      .replace(REGEX_SPECIAL_CHARACTERS_REGEX, "\\$&");
     filtro.nombre = new RegExp(texto, "i");
   }
 

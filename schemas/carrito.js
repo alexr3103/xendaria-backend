@@ -1,5 +1,7 @@
 import yup from "yup";
 
+const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
+
 const varianteSchema = yup.object({
   color: yup.string().trim().optional().max(60),
   talle: yup.string().trim().optional().max(30),
@@ -10,7 +12,7 @@ const itemCarritoSchema = yup.object({
   idProducto: yup
     .string()
     .required("El idProducto es obligatorio")
-    .matches(/^[0-9a-fA-F]{24}$/, "idProducto no es un ObjectId valido"),
+    .matches(OBJECT_ID_REGEX, "idProducto no es un ObjectId valido"),
 
   nombre: yup
     .string()
@@ -46,7 +48,7 @@ export const carritoSchema = yup.object({
   idUsuario: yup
     .string()
     .required("El idUsuario es obligatorio")
-    .matches(/^[0-9a-fA-F]{24}$/, "idUsuario no es un ObjectId valido"),
+    .matches(OBJECT_ID_REGEX, "idUsuario no es un ObjectId valido"),
 
   estado: yup
     .string()

@@ -1,6 +1,9 @@
 import { ObjectId } from "mongodb";
 import { getDB } from "./db.js";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const NON_DIGIT_REGEX = /\D/g;
+
 const PLANES = new Set(["1 mes", "3 meses", "6 meses"]);
 const TIPOS_BENEFICIO = new Set([
   "descuento",
@@ -66,11 +69,11 @@ function normalizarSolicitud(data = {}) {
     throw errorValidacion("El tipo de beneficio seleccionado no es válido");
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+  if (!EMAIL_REGEX.test(email)) {
     throw errorValidacion("Ingresá un email válido");
   }
 
-  const cantidadDigitos = telefono.replace(/\D/g, "").length;
+  const cantidadDigitos = telefono.replace(NON_DIGIT_REGEX, "").length;
   if (cantidadDigitos < 8 || cantidadDigitos > 15) {
     throw errorValidacion("Ingresá un teléfono válido de entre 8 y 15 números");
   }

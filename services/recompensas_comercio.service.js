@@ -3,6 +3,7 @@ import { getDB } from "./db.js";
 import * as notificacionesService from "./notificaciones.service.js";
 
 const CATEGORIA_COMERCIOS = "comercios";
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 function configuracionesCollection() {
   return getDB().collection("recompensas_comercio");
@@ -61,7 +62,7 @@ function normalizarVencimiento(value) {
     throw errorConEstado("La fecha de vencimiento es obligatoria");
   }
 
-  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(texto)
+  const fecha = ISO_DATE_REGEX.test(texto)
     ? new Date(`${texto}T23:59:59.999-03:00`)
     : new Date(texto);
 

@@ -6,6 +6,7 @@ import bcrypt from "bcrypt";
 import * as recompensasService from "../../services/recompensas_comercio.service.js";
 
 const TIPOS_MULTIMEDIA = new Set(["youtube", "spotify", "imagen", "enlace"]);
+const WWW_PREFIX_REGEX = /^www\./;
 
 function esAdmin(req) {
   return req.user?.role === "admin";
@@ -49,7 +50,7 @@ function validarUrlMultimedia(tipo, value) {
 
   if (!["https:", "http:"].includes(url.protocol)) return false;
 
-  const host = url.hostname.replace(/^www\./, "");
+  const host = url.hostname.replace(WWW_PREFIX_REGEX, "");
   if (tipo === "youtube") {
     return host === "youtube.com" || host === "youtu.be";
   }

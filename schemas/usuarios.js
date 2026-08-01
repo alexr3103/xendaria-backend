@@ -1,5 +1,9 @@
 import * as yup from 'yup';
 
+const PASSWORD_NUMBER_REGEX = /[0-9]/;
+const PASSWORD_UPPERCASE_REGEX = /[A-Z]/;
+const PASSWORD_SPECIAL_CHARACTER_REGEX = /[!@#$%^&*(),.?":{}|<>_+=-]/;
+
 export const registerSchema = yup.object({
   nombre: yup
     .string()
@@ -13,9 +17,9 @@ export const registerSchema = yup.object({
   password: yup
     .string()
     .min(6, "La contraseña debe tener al menos 6 caracteres")
-    .matches(/[0-9]/, "La contraseña debe tener al menos un número")
-    .matches(/[A-Z]/, "La contraseña debe tener al menos una mayúscula")
-    .matches(/[!@#$%^&*(),.?":{}|<>_\-+=]/, "La contraseña debe tener al menos un caracter especial")
+    .matches(PASSWORD_NUMBER_REGEX, "La contraseña debe tener al menos un número")
+    .matches(PASSWORD_UPPERCASE_REGEX, "La contraseña debe tener al menos una mayúscula")
+    .matches(PASSWORD_SPECIAL_CHARACTER_REGEX, "La contraseña debe tener al menos un caracter especial")
     .required("La contraseña es obligatoria"),
 
   passwordConfirm: yup
@@ -51,8 +55,8 @@ export const loginSchema = yup.object({
   password: yup
     .string()
     .min(6, "La contraseña debe tener al menos 6 caracteres")
-    .matches(/[0-9]/, "La contraseña debe tener al menos un número")
-    .matches(/[A-Z]/, "La contraseña debe tener al menos una mayúscula")
-    .matches(/[!@#$%^&*(),.?\":{}|<>_\-+=]/, "La contraseña debe tener al menos un caracter especial")
+    .matches(PASSWORD_NUMBER_REGEX, "La contraseña debe tener al menos un número")
+    .matches(PASSWORD_UPPERCASE_REGEX, "La contraseña debe tener al menos una mayúscula")
+    .matches(PASSWORD_SPECIAL_CHARACTER_REGEX, "La contraseña debe tener al menos un caracter especial")
     .required("La contraseña es obligatoria"),
 });
