@@ -9,6 +9,7 @@ import {
   eliminarImagen,
   subirImagenMerch,
 } from "../controllers/controller.api.upload.js";
+import { getMensajePublico } from "../../utils/errores.js";
 
 const route = Router();
 
@@ -24,7 +25,12 @@ route.use((err, _req, res, _next) => {
   }
 
   if (err?.message) {
-    return res.status(400).json({ message: err.message });
+    return res.status(400).json({
+      message: getMensajePublico(
+        { status: 400, message: err.message },
+        "El archivo seleccionado no se pudo procesar."
+      ),
+    });
   }
 
   return res.status(500).json({ message: "Error al procesar la imagen" });

@@ -1,5 +1,6 @@
 import * as serviceRutas from "../../services/rutas_recomendadas.service.js";
 import * as notificacionesService from "../../services/notificaciones.service.js";
+import { responderError as responderErrorSeguro } from "../../utils/errores.js";
 
 async function notificarRutaPublicada(ruta) {
   if (!ruta || ruta.activa === false) return;
@@ -32,8 +33,7 @@ async function notificarRutaPublicada(ruta) {
 }
 
 function responderError(res, error, fallback) {
-  return res.status(error.status || 500).json({
-    message: error.message || fallback,
+  return responderErrorSeguro(res, error, fallback, {
     puntosFaltantes: error.puntosFaltantes,
     puntosInvalidos: error.puntosInvalidos,
   });

@@ -7,7 +7,7 @@ export function validateObjectId(...paramNames) {
 
       if (!value || !ObjectId.isValid(value)) {
         return res.status(400).json({
-          message: `Parametro ${paramName} no es un ObjectId valido`,
+          message: "El identificador enviado no es válido.",
         });
       }
     }
@@ -23,7 +23,7 @@ export function validateBodyObjectId(...fieldNames) {
 
       if (!value || !ObjectId.isValid(value)) {
         return res.status(400).json({
-          message: `Campo ${fieldName} no es un ObjectId valido`,
+          message: "El identificador enviado no es válido.",
         });
       }
     }
@@ -39,7 +39,7 @@ export function validateOptionalBodyObjectId(...fieldNames) {
 
       if (value && !ObjectId.isValid(value)) {
         return res.status(400).json({
-          message: `Campo ${fieldName} no es un ObjectId valido`,
+          message: "El identificador enviado no es válido.",
         });
       }
     }

@@ -394,7 +394,13 @@ export async function guardarPunto(punto) {
 
 export async function reemplazarPunto(id, punto) {
   const puntoAGuardar = prepararPuntoParaGuardar(punto);
-  return collection().replaceOne({ _id: new ObjectId(id) }, puntoAGuardar);
+  const resultado = await collection().replaceOne(
+    { _id: new ObjectId(id) },
+    puntoAGuardar
+  );
+
+  await sincronizarInsigniaEnUsuarios(id, puntoAGuardar.insignia);
+  return resultado;
 }
 
 async function limpiarReferenciasPuntoEliminado(puntoId) {
@@ -477,6 +483,22 @@ export async function getInsigniasArchivadas() {
   return insigniasArchivadasCollection().find({}).toArray();
 }
 
+async function sincronizarInsigniaEnUsuarios(idPunto, insignia) {
+  const url = getInsigniaUrl({ insignia });
+  if (!url) return;
+
+  const puntoObjectId = new ObjectId(idPunto);
+  const idsCompatibles = [puntoObjectId, puntoObjectId.toString()];
+
+  await getDB().collection("usuarios").updateMany(
+    { "insignias.idPunto": { $in: idsCompatibles } },
+    { $set: { "insignias.$[item].url": url } },
+    {
+      arrayFilters: [{ "item.idPunto": { $in: idsCompatibles } }],
+    }
+  );
+}
+
 export async function editarPunto(id, punto) {
   const data = { ...punto };
   const categorias = normalizarCategoriasPunto(data);
@@ -500,7 +522,16 @@ export async function editarPunto(id, punto) {
     }
   }
 
-  return collection().updateOne({ _id: new ObjectId(id) }, { $set: data });
+  const resultado = await collection().updateOne(
+    { _id: new ObjectId(id) },
+    { $set: data }
+  );
+
+  if (Object.hasOwn(data, "insignia")) {
+    await sincronizarInsigniaEnUsuarios(id, data.insignia);
+  }
+
+  return resultado;
 }
 
 function mergeArrayPorClave(arrays = [], getKey = (item) => JSON.stringify(item)) {

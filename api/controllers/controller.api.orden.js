@@ -1,4 +1,5 @@
 import * as service from "../../services/orden.service.js";
+import { responderError } from "../../utils/errores.js";
 
 export async function getMisOrdenes(req, res) {
     try {
@@ -36,9 +37,7 @@ export async function actualizarEstadoOrden(req, res) {
         return res.status(200).json(orden);
     } catch (error) {
         console.error("[actualizarEstadoOrden]", error);
-        return res
-        .status(error.statusCode || 500)
-        .json({ message: error.message || "No se pudo actualizar la orden" });
+        return responderError(res, error, "No se pudo actualizar la orden");
     }
 }
 
@@ -61,8 +60,10 @@ export async function crearPreferenciaMercadoPagoDesdeCarrito(req, res) {
         return res.status(200).json(preferencia);
     } catch (error) {
         console.error("[crearPreferenciaMercadoPagoDesdeCarrito]", error);
-        return res
-            .status(error.statusCode || 500)
-            .json({ message: error.message || "No se pudo crear la preferencia de Mercado Pago" });
+        return responderError(
+            res,
+            error,
+            "No se pudo iniciar el pago con Mercado Pago"
+        );
     }
 }

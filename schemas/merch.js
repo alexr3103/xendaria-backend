@@ -1,4 +1,4 @@
-import yup from "yup";
+import yup from "./yup.js";
 
 const varianteSchema = yup.object({
   color: yup.string().trim().optional().max(60),

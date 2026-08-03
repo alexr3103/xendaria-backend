@@ -37,6 +37,10 @@ import ComerciosApiRouter from "./api/routes/routes.api.comercios.js";
 import NotificacionesApiRouter from "./api/routes/routes.api.notificaciones.js";
 import PuntosRouter from "./routes/puntos_visitables.route.js";
 import UsuariosRouter from "./routes/usuarios.route.js";
+import {
+    manejarError,
+    rutaNoEncontrada,
+} from "./middleware/error.middleware.js";
 import cors from "cors";
 
 const app = express();
@@ -96,6 +100,8 @@ app.use("/api/comercios", ComerciosApiRouter);
 app.use("/api/notificaciones", NotificacionesApiRouter);
 app.use("/puntos", PuntosRouter);
 app.use("/usuarios", UsuariosRouter);
+app.use(rutaNoEncontrada);
+app.use(manejarError);
 //app.get("/api/health", (_req, res) => {
 //  res.json({ ok: true, service: "xendaria-back", time: Date.now() });
 //}); Esto es para probar el endpoint y que traiga bien

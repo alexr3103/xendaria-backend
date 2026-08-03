@@ -7,6 +7,7 @@ import * as emailService from '../../services/email.service.js'
 import { consultarStreetViewMetadata } from "../../services/streetview.service.js";
 import { emitRankingUpdated } from "../../services/socket.service.js";
 import * as notificacionesService from "../../services/notificaciones.service.js";
+import { responderError } from "../../utils/errores.js";
 
 
 
@@ -208,6 +209,7 @@ export async function getUsuariosById(req, res) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    usuario = await serviceUsuarios.hidratarInsigniasUsuario(usuario);
     usuario = await serviceUsuarios.ocultarRelacionesAdministradores(usuario);
     res.status(200).json(prepararUsuarioParaRespuesta(usuario, req, id));
   } catch (e) {
@@ -520,9 +522,7 @@ export async function seguirUsuario(req, res) {
     });
   } catch (err) {
     console.error("[seguirUsuario]", err);
-    return res
-      .status(err.status || 500)
-      .json({ message: err.message || "No se pudo seguir al usuario" });
+    return responderError(res, err, "No se pudo seguir al usuario");
   }
 }
 
@@ -845,9 +845,7 @@ export async function nuevoPunto(req, res) {
     res.status(201).json({ message: "Punto propio creado correctamente", nuevoPunto });
   } catch (err) {
     console.error("[nuevoPunto]", err);
-    res
-      .status(err.status || 500)
-      .json({ message: err.message || "No se pudo guardar el punto propio" });
+    return responderError(res, err, "No se pudo guardar el punto propio");
   }
 }
 
@@ -974,9 +972,7 @@ export async function editarPuntoPropio(req, res) {
     });
   } catch (err) {
     console.error("[editarPuntoPropio]", err);
-    res
-      .status(err.status || 500)
-      .json({ message: err.message || "No se pudo editar el punto propio" });
+    return responderError(res, err, "No se pudo editar el punto propio");
   }
 }
 
@@ -1194,11 +1190,7 @@ export async function registrarPuntoVisitado(req, res) {
     });
   } catch (err) {
     console.error("[registrarPuntoVisitado]", err);
-    return res.status(err.status || 500).json({
-      message: err.status
-        ? err.message
-        : "Error al registrar punto visitado",
-    });
+    return responderError(res, err, "No se pudo registrar la visita");
   }
 }
 

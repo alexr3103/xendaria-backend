@@ -7,19 +7,25 @@ export async function verifyToken(req, res, next) {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       console.error("[verifyToken] JWT_SECRET no configurado");
-      return res.status(500).json({ message: "Configuracion de autenticacion incompleta" });
+      return res.status(500).json({
+        message: "No pudimos validar tu sesión en este momento.",
+      });
     }
 
     // Extraemos el token del header Authorization
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      return res.status(401).json({ message: "Token no proporcionado" });
+      return res.status(401).json({
+        message: "Iniciá sesión para continuar.",
+      });
     }
 
     // El formato esperado es: "Bearer <token>"
     const token = authHeader.split(" ")[1];
     if (!token) {
-      return res.status(401).json({ message: "Formato de token inválido" });
+      return res.status(401).json({
+        message: "Tu sesión no es válida. Iniciá sesión nuevamente.",
+      });
     }
 
     // Verificamos el token con la misma secret que usás en createToken()
@@ -32,7 +38,7 @@ export async function verifyToken(req, res, next) {
 
     if (!usuario || usuario.activo === false) {
       return res.status(401).json({
-        message: "La cuenta ya no está activa",
+        message: "Esta cuenta está desactivada. Contactá a soporte para reactivarla.",
       });
     }
 
@@ -45,7 +51,12 @@ export async function verifyToken(req, res, next) {
 
   } catch (err) {
     console.error("[verifyToken]", err);
-    return res.status(401).json({ message: "Token inválido o expirado" });
+    return res.status(401).json({
+      message:
+        err?.name === "TokenExpiredError"
+          ? "Tu sesión venció. Iniciá sesión nuevamente."
+          : "Tu sesión no es válida. Iniciá sesión nuevamente.",
+    });
   }
 }
 
@@ -67,7 +78,9 @@ export function optionalAuth(req, _res, next) {
 
 export function requireAdmin(req, res, next) {
   if (req.user?.role !== "admin") {
-    return res.status(403).json({ message: "Acceso permitido solo para administradores" });
+    return res.status(403).json({
+      message: "Esta acción está disponible solo para administradores.",
+    });
   }
 
   next();

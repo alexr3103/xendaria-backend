@@ -726,6 +726,39 @@ function getInsigniaUrlPunto(punto = {}) {
   return punto.insignia?.url || punto.insignia?.imagen || punto.insignia?.foto || "";
 }
 
+export async function hidratarInsigniasUsuario(usuario) {
+  if (!usuario) return null;
+
+  const insignias = normalizarListaInsignias(usuario.insignias);
+  if (insignias.length === 0) {
+    return { ...usuario, insignias: [] };
+  }
+
+  const puntos = await servicePuntos.getPuntosByIds(
+    insignias.map((insignia) => insignia.idPunto)
+  );
+  const puntosPorId = new Map(
+    puntos.map((punto) => [punto._id.toString(), punto])
+  );
+
+  return {
+    ...usuario,
+    insignias: insignias.map((insignia) => {
+      const punto = puntosPorId.get(insignia.idPunto.toString());
+      const imagenActual = punto ? getInsigniaUrlPunto(punto) : "";
+
+      if (!imagenActual) return insignia;
+
+      return {
+        ...insignia,
+        titulo: punto.nombre || insignia.titulo,
+        direccion: punto.direccion || insignia.direccion,
+        url: imagenActual,
+      };
+    }),
+  };
+}
+
 export async function getAlbumInsigniasUsuario(idUsuario) {
   const usuario = await getUsuariosById(idUsuario);
   if (!usuario) return null;

@@ -1,4 +1,4 @@
-import yup from "yup";
+import yup from "./yup.js";
 
 const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
 const LAST_FOUR_DIGITS_REGEX = /^(\d{4})?$/;
@@ -13,7 +13,7 @@ export const itemOrdenSchema = yup.object({
   idProducto: yup
     .string()
     .required("El idProducto es obligatorio")
-    .matches(OBJECT_ID_REGEX, "idProducto no es un ObjectId valido"),
+    .matches(OBJECT_ID_REGEX, "El identificador del producto no es válido."),
 
   nombre: yup
     .string()
@@ -156,7 +156,7 @@ export const ordenSchema = yup.object({
   idUsuario: yup
     .string()
     .required("El idUsuario es obligatorio")
-    .matches(OBJECT_ID_REGEX, "idUsuario no es un ObjectId valido"),
+    .matches(OBJECT_ID_REGEX, "El identificador del usuario no es válido."),
 
   numeroCompra: yup
     .string()

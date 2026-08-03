@@ -4,6 +4,7 @@ import { consultarStreetViewMetadata } from "../../services/streetview.service.j
 import { ObjectId } from "mongodb";
 import bcrypt from "bcrypt";
 import * as recompensasService from "../../services/recompensas_comercio.service.js";
+import { responderError } from "../../utils/errores.js";
 
 const TIPOS_MULTIMEDIA = new Set(["youtube", "spotify", "imagen", "enlace"]);
 const WWW_PREFIX_REGEX = /^www\./;
@@ -236,9 +237,7 @@ export async function nuevoPunto(req, res) {
     return res.status(201).json(puntoNuevo);
   } catch (e) {
     console.error("[nuevoPunto]", e);
-    return res
-      .status(e.status || 500)
-      .json({ message: e.message || "No se pudo guardar el punto" });
+    return responderError(res, e, "No se pudo guardar el punto");
   }
 }
 
@@ -405,9 +404,7 @@ export async function editarPunto(req, res) {
     return res.status(202).json(puntoEditado);
   } catch (e) {
     console.error("[editarPunto]", e);
-    return res
-      .status(e.status || 500)
-      .json({ message: e.message || "No se pudo editar el punto" });
+    return responderError(res, e, "No se pudo editar el punto");
   }
 }
 

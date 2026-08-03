@@ -4,6 +4,7 @@ import {
   enviarSolicitudComercioAdmin,
 } from "../../services/email.service.js";
 import * as recompensasService from "../../services/recompensas_comercio.service.js";
+import { responderError } from "../../utils/errores.js";
 
 export async function crearSolicitudComercio(req, res) {
   try {
@@ -36,9 +37,7 @@ export async function crearSolicitudComercio(req, res) {
     });
   } catch (error) {
     console.error("[crearSolicitudComercio]", error);
-    return res.status(error.status || 500).json({
-      message: error.message || "No se pudo registrar la solicitud",
-    });
+    return responderError(res, error, "No se pudo registrar la solicitud");
   }
 }
 
@@ -73,9 +72,7 @@ export async function actualizarEstadoSolicitud(req, res) {
     });
   } catch (error) {
     console.error("[actualizarEstadoSolicitud]", error);
-    return res.status(error.status || 500).json({
-      message: error.message || "No se pudo actualizar la solicitud",
-    });
+    return responderError(res, error, "No se pudo actualizar la solicitud");
   }
 }
 
@@ -92,9 +89,7 @@ export async function getConfiguracionRecompensaAdmin(req, res) {
     });
   } catch (error) {
     console.error("[getConfiguracionRecompensaAdmin]", error);
-    return res.status(error.status || 500).json({
-      message: error.message || "No se pudo obtener la recompensa",
-    });
+    return responderError(res, error, "No se pudo obtener la recompensa");
   }
 }
 
@@ -112,9 +107,7 @@ export async function guardarConfiguracionRecompensa(req, res) {
     });
   } catch (error) {
     console.error("[guardarConfiguracionRecompensa]", error);
-    return res.status(error.status || 500).json({
-      message: error.message || "No se pudo guardar la recompensa",
-    });
+    return responderError(res, error, "No se pudo guardar la recompensa");
   }
 }
 
@@ -134,9 +127,7 @@ export async function getEstadoRecompensaUsuario(req, res) {
     return res.status(200).json(recompensa);
   } catch (error) {
     console.error("[getEstadoRecompensaUsuario]", error);
-    return res.status(error.status || 500).json({
-      message: error.message || "No se pudo consultar la recompensa",
-    });
+    return responderError(res, error, "No se pudo consultar la recompensa");
   }
 }
 
@@ -149,9 +140,11 @@ export async function getMisCanjesRecompensas(req, res) {
     return res.status(200).json(canjes);
   } catch (error) {
     console.error("[getMisCanjesRecompensas]", error);
-    return res.status(error.status || 500).json({
-      message: error.message || "No se pudieron obtener los beneficios canjeados",
-    });
+    return responderError(
+      res,
+      error,
+      "No se pudieron obtener los beneficios canjeados"
+    );
   }
 }
 
@@ -168,8 +161,6 @@ export async function canjearRecompensa(req, res) {
     });
   } catch (error) {
     console.error("[canjearRecompensa]", error);
-    return res.status(error.status || 500).json({
-      message: error.message || "No se pudo abrir la recompensa",
-    });
+    return responderError(res, error, "No se pudo abrir la recompensa");
   }
 }

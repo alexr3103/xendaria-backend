@@ -2,11 +2,14 @@ import * as serviceRanking from "../../services/ranking.service.js";
 
 export async function getRankingUsuarios(req, res) {
   try {
+    const criterio = req.query.criterio === "insignias" ? "insignias" : "visitas";
     const usuarios = await serviceRanking.getRankingUsuarios({
       limit: req.query.limit,
+      criterio,
     });
 
     return res.status(200).json({
+      criterio,
       usuarios,
       top3: usuarios.slice(0, 3),
       ranking: usuarios.slice(3),
@@ -55,7 +58,10 @@ export async function getRankingLugaresMejorVotados(req, res) {
 
 export async function getMiPosicionRanking(req, res) {
   try {
-    const posicion = await serviceRanking.getMiPosicionRanking(req.user.id);
+    const criterio = req.query.criterio === "insignias" ? "insignias" : "visitas";
+    const posicion = await serviceRanking.getMiPosicionRanking(req.user.id, {
+      criterio,
+    });
     if (!posicion) return res.status(404).json({ message: "Usuario no encontrado" });
 
     return res.status(200).json(posicion);

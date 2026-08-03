@@ -1,4 +1,4 @@
-import yup from "yup";
+import yup from "./yup.js";
 
 const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
 
@@ -34,7 +34,7 @@ const multimediaSchema = yup.object({
   _id: yup
     .string()
     .optional()
-    .matches(OBJECT_ID_REGEX, "No es un _id de Mongo valido"),
+    .matches(OBJECT_ID_REGEX, "El identificador del contenido no es válido."),
 
   tipo: yup
     .string()
@@ -229,5 +229,5 @@ export const puntoSchema = yup.object({
   _id: yup
     .string()
     .optional()
-    .matches(OBJECT_ID_REGEX, "No es un _id de Mongo valido"),
+    .matches(OBJECT_ID_REGEX, "El identificador del punto no es válido."),
 });

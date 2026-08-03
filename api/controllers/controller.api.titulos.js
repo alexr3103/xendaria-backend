@@ -1,5 +1,6 @@
 import * as serviceTitulos from "../../services/titulos.service.js";
 import * as serviceUsuarios from "../../services/usuarios.service.js";
+import { responderError } from "../../utils/errores.js";
 
 function puedeVerTitulosUsuario(req, usuario, idUsuario) {
   if (String(req.user?.id) === String(idUsuario)) return true;
@@ -33,9 +34,7 @@ export async function crearTitulo(req, res) {
     });
   } catch (err) {
     console.error("[crearTitulo]", err);
-    return res
-      .status(err.status || 500)
-      .json({ message: err.message || "No se pudo crear el titulo" });
+    return responderError(res, err, "No se pudo crear el título");
   }
 }
 
@@ -50,9 +49,7 @@ export async function editarTitulo(req, res) {
     });
   } catch (err) {
     console.error("[editarTitulo]", err);
-    return res
-      .status(err.status || 500)
-      .json({ message: err.message || "No se pudo actualizar el titulo" });
+    return responderError(res, err, "No se pudo actualizar el título");
   }
 }
 
@@ -93,9 +90,7 @@ export async function seleccionarMiTitulo(req, res) {
     });
   } catch (err) {
     console.error("[seleccionarMiTitulo]", err);
-    return res
-      .status(err.status || 500)
-      .json({ message: err.message || "No se pudo elegir el titulo" });
+    return responderError(res, err, "No se pudo elegir el título");
   }
 }
 

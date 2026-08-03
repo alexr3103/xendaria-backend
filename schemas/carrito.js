@@ -1,4 +1,4 @@
-import yup from "yup";
+import yup from "./yup.js";
 
 const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
 
@@ -12,7 +12,7 @@ const itemCarritoSchema = yup.object({
   idProducto: yup
     .string()
     .required("El idProducto es obligatorio")
-    .matches(OBJECT_ID_REGEX, "idProducto no es un ObjectId valido"),
+    .matches(OBJECT_ID_REGEX, "El identificador del producto no es válido."),
 
   nombre: yup
     .string()
@@ -48,7 +48,7 @@ export const carritoSchema = yup.object({
   idUsuario: yup
     .string()
     .required("El idUsuario es obligatorio")
-    .matches(OBJECT_ID_REGEX, "idUsuario no es un ObjectId valido"),
+    .matches(OBJECT_ID_REGEX, "El identificador del usuario no es válido."),
 
   estado: yup
     .string()

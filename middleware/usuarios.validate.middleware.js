@@ -1,4 +1,5 @@
 import { registerSchema, loginSchema } from "../schemas/usuarios.js";
+import { getMensajeValidacion } from "../utils/errores.js";
 
 export async function validateRegister(req, res, next) {
   try {
@@ -6,7 +7,7 @@ export async function validateRegister(req, res, next) {
     req.body = validated;
     next();
   } catch (error) {
-    res.status(400).json({ message: error.errors });
+    res.status(400).json({ message: getMensajeValidacion(error) });
   }
 }
 
@@ -16,6 +17,6 @@ export async function validateLogin(req, res, next) {
     req.body = validated;
     next();
   } catch (error) {
-    res.status(400).json({ message: error.errors });
+    res.status(400).json({ message: getMensajeValidacion(error) });
   }
 }

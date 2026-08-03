@@ -1,4 +1,5 @@
 import { puntoSchema } from "../schemas/puntos_visitables.js"
+import { getMensajeValidacion } from "../utils/errores.js";
 
 export function validatePunto(req, res, next){
     puntoSchema.validate(req.body,
@@ -10,5 +11,5 @@ export function validatePunto(req, res, next){
             req.body = data
             next()
         })
-        .catch( (error) => res.status(400).json({message: error.errors}) )
+        .catch( (error) => res.status(400).json({message: getMensajeValidacion(error)}) )
 }

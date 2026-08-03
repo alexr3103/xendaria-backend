@@ -1,4 +1,5 @@
 import * as service from "../../services/notificaciones.service.js";
+import { responderError } from "../../utils/errores.js";
 
 export async function listar(req, res) {
   try {
@@ -91,9 +92,11 @@ export async function guardarSuscripcionPush(req, res) {
     return res.status(201).json(resultado);
   } catch (error) {
     console.error("[guardarSuscripcionPush]", error);
-    return res.status(error.status || 500).json({
-      message: error.message || "No se pudo guardar la suscripcion push",
-    });
+    return responderError(
+      res,
+      error,
+      "No se pudo guardar la suscripción para notificaciones"
+    );
   }
 }
 

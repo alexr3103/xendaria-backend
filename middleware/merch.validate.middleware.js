@@ -1,4 +1,5 @@
 import { productoMerchSchema } from "../schemas/merch.js";
+import { getMensajeValidacion } from "../utils/errores.js";
 
 export function validateProductoMerch(req, res, next) {
   productoMerchSchema.validate(req.body, {
@@ -9,5 +10,7 @@ export function validateProductoMerch(req, res, next) {
       req.body = data;
       next();
     })
-    .catch((error) => res.status(400).json({ message: error.errors }));
+    .catch((error) =>
+      res.status(400).json({ message: getMensajeValidacion(error) })
+    );
 }

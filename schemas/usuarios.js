@@ -1,4 +1,4 @@
-import * as yup from 'yup';
+import yup from "./yup.js";
 
 const PASSWORD_NUMBER_REGEX = /[0-9]/;
 const PASSWORD_UPPERCASE_REGEX = /[A-Z]/;
@@ -25,12 +25,12 @@ export const registerSchema = yup.object({
   passwordConfirm: yup
     .string()
     .oneOf([yup.ref("password")], "Las contraseñas deben coincidir")
-    .required("Confirmar contraseña es obligatorio"),
+    .required("La confirmación de contraseña es obligatoria"),
 
   aceptaTerminos: yup
     .boolean()
-    .oneOf([true], "Debes aceptar los terminos y la politica de privacidad")
-    .required("Debes aceptar los terminos y la politica de privacidad"),
+    .oneOf([true], "Tenés que aceptar los términos y la política de privacidad")
+    .required("Tenés que aceptar los términos y la política de privacidad"),
 
   foto: yup
     .string()

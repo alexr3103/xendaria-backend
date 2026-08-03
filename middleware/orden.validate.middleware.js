@@ -1,5 +1,6 @@
-import yup from "yup";
+import yup from "../schemas/yup.js";
 import { datosEnvioSchema } from "../schemas/orden.js";
+import { getMensajeValidacion } from "../utils/errores.js";
 
 const crearCheckoutMercadoPagoSchema = yup.object({
     datosEnvio: datosEnvioSchema.required("Los datos de envio son obligatorios"),
@@ -15,6 +16,6 @@ export async function validateCrearCheckoutMercadoPago(req, res, next) {
         req.body = validated;
         next();
     } catch (error) {
-        return res.status(400).json({ message: error.errors });
+        return res.status(400).json({ message: getMensajeValidacion(error) });
     }
 }

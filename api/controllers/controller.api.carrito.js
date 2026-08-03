@@ -1,4 +1,5 @@
 import * as service from "../../services/carrito.service.js";
+import { getMensajePublico } from "../../utils/errores.js";
 
 export async function getCarrito(req, res) {
   try {
@@ -40,7 +41,12 @@ export async function agregarProducto(req, res) {
       error.message === "La variante seleccionada no existe para este producto" ||
       error.message === "La cantidad solicitada supera el stock disponible"
     ) {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({
+        message: getMensajePublico(
+          { status: 400, message: error.message },
+          "Revisá las opciones y la cantidad del producto."
+        ),
+      });
     }
 
     return res.status(500).json({ message: "No se pudo agregar el producto al carrito" });
@@ -76,7 +82,12 @@ export async function actualizarCantidadProducto(req, res) {
       error.message === "La variante seleccionada no existe para este producto" ||
       error.message === "La cantidad solicitada supera el stock disponible"
     ) {
-      return res.status(400).json({ message: error.message });
+      return res.status(400).json({
+        message: getMensajePublico(
+          { status: 400, message: error.message },
+          "Revisá las opciones y la cantidad del producto."
+        ),
+      });
     }
 
     return res.status(500).json({ message: "No se pudo actualizar la cantidad del producto" });

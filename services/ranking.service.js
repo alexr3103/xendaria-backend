@@ -35,8 +35,36 @@ function getParticipaRankingMatch() {
   };
 }
 
-export async function getRankingUsuarios({ limit = 20 } = {}) {
-  const limite = Math.min(Math.max(Number(limit) || 20, 1), 100);
+function normalizarCriterioRanking(criterio) {
+  return criterio === "insignias" ? "insignias" : "visitas";
+}
+
+function getOrdenRankingUsuarios(criterio) {
+  if (criterio === "insignias") {
+    return {
+      totalInsignias: -1,
+      totalVisitados: -1,
+      ultimaVisita: -1,
+      nombre: 1,
+    };
+  }
+
+  return {
+    totalVisitados: -1,
+    totalInsignias: -1,
+    ultimaVisita: -1,
+    nombre: 1,
+  };
+}
+
+export async function getRankingUsuarios({
+  limit = 20,
+  criterio = "visitas",
+  maxLimit = 100,
+} = {}) {
+  const criterioNormalizado = normalizarCriterioRanking(criterio);
+  const limiteMaximo = Math.max(Number(maxLimit) || 100, 1);
+  const limite = Math.min(Math.max(Number(limit) || 20, 1), limiteMaximo);
 
   const resultados = await visitasCollection()
     .aggregate([
@@ -72,14 +100,7 @@ export async function getRankingUsuarios({ limit = 20 } = {}) {
           ultimaVisita: 1,
         },
       },
-      {
-        $sort: {
-          totalInsignias: -1,
-          totalVisitados: -1,
-          ultimaVisita: -1,
-          nombre: 1,
-        },
-      },
+      { $sort: getOrdenRankingUsuarios(criterioNormalizado) },
       { $limit: limite },
     ])
     .toArray();
@@ -87,7 +108,7 @@ export async function getRankingUsuarios({ limit = 20 } = {}) {
   return resultados.map(normalizarUsuarioRanking);
 }
 
-export async function getMiPosicionRanking(idUsuario) {
+export async function getMiPosicionRanking(idUsuario, { criterio = "visitas" } = {}) {
   const usuario = await usuariosCollection().findOne({ _id: new ObjectId(idUsuario) });
   if (!usuario) return null;
 
@@ -113,7 +134,11 @@ export async function getMiPosicionRanking(idUsuario) {
     };
   }
 
-  const rankingCompleto = await getRankingUsuarios({ limit: 10000 });
+  const rankingCompleto = await getRankingUsuarios({
+    limit: 10000,
+    maxLimit: 10000,
+    criterio: normalizarCriterioRanking(criterio),
+  });
   const posicion = rankingCompleto.find(
     (item) => item.usuarioId === idUsuario.toString()
   );

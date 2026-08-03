@@ -1,9 +1,9 @@
 import * as serviceCalificaciones from "../../services/calificaciones.service.js";
 import { emitRankingUpdated } from "../../services/socket.service.js";
+import { responderError as responderErrorSeguro } from "../../utils/errores.js";
 
 function responderError(res, error, fallback) {
-  return res.status(error.status || 500).json({
-    message: error.message || fallback,
+  return responderErrorSeguro(res, error, fallback, {
     distanciaMetros: error.distanciaMetros,
   });
 }
