@@ -296,11 +296,8 @@ export async function getTitulosUsuario(idUsuario) {
     ),
   ]);
 
-  const tituloSinVisitas = reglas.find(
-    (regla) => regla.categoria === "sin_visitas"
-  );
-  const tituloConVisitas = reglas.find(
-    (regla) => regla.categoria === "con_visitas_sin_titulo"
+  const reglasGlobales = reglas.filter((regla) =>
+    CATEGORIAS_TITULOS_DEFAULT.has(regla.categoria)
   );
   const reglasPorCategoria = reglas.filter(
     (regla) => !CATEGORIAS_TITULOS_DEFAULT.has(regla.categoria)
@@ -317,7 +314,25 @@ export async function getTitulosUsuario(idUsuario) {
     });
   });
 
-  const titulos = reglasPorCategoria.map((regla) => {
+  const titulosGlobales = reglasGlobales.map((regla) => {
+    const esTituloInicial = regla.categoria === "sin_visitas";
+    const umbralEfectivo = esTituloInicial
+      ? 0
+      : Math.max(1, Number(regla.umbral || 0));
+    const progreso = puntos.length;
+
+    return {
+      ...regla,
+      progreso,
+      porcentaje: esTituloInicial
+        ? 100
+        : Math.min(100, Math.round((progreso / umbralEfectivo) * 100)),
+      desbloqueado: esTituloInicial || progreso >= umbralEfectivo,
+      esDefault: true,
+    };
+  });
+
+  const titulosPorCategoria = reglasPorCategoria.map((regla) => {
     const progreso = conteoPorCategoria.get(regla.categoria) || 0;
     const porcentaje = Math.min(100, Math.round((progreso / regla.umbral) * 100));
 
@@ -328,6 +343,8 @@ export async function getTitulosUsuario(idUsuario) {
       desbloqueado: progreso >= regla.umbral,
     };
   });
+
+  const titulos = [...titulosGlobales, ...titulosPorCategoria];
 
   const desbloqueados = titulos
     .filter((titulo) => titulo.desbloqueado)
@@ -341,23 +358,12 @@ export async function getTitulosUsuario(idUsuario) {
     .map(([categoria, total]) => ({ categoria, total }))
     .sort((a, b) => b.total - a.total);
 
-  const tituloDefault =
-    puntos.length === 0 ? tituloSinVisitas : tituloConVisitas;
-  const tituloInicial = tituloDefault
-    ? {
-        ...tituloDefault,
-        progreso: puntos.length,
-        porcentaje: 100,
-        desbloqueado: true,
-        esDefault: true,
-      }
-    : null;
-  const disponibles = [tituloInicial, ...desbloqueados].filter(Boolean);
+  const disponibles = desbloqueados;
   const tituloSeleccionadoId = normalizarId(usuario?.tituloSeleccionadoId);
   const tituloSeleccionado = disponibles.find(
     (titulo) => normalizarId(titulo._id) === tituloSeleccionadoId
   );
-  const tituloActual = tituloSeleccionado || desbloqueados[0] || tituloInicial;
+  const tituloActual = tituloSeleccionado || desbloqueados[0] || null;
 
   return {
     usuarioId: idUsuario,
