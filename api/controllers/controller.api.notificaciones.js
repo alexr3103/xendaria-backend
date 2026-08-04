@@ -24,13 +24,13 @@ export async function marcarLeida(req, res) {
     );
 
     if (!resultado.matchedCount) {
-      return res.status(404).json({ message: "Notificacion no encontrada" });
+      return res.status(404).json({ message: "Notificación no encontrada" });
     }
 
-    return res.status(200).json({ message: "Notificacion leida" });
+    return res.status(200).json({ message: "Notificación leída" });
   } catch (error) {
     console.error("[marcarNotificacionLeida]", error);
-    return res.status(500).json({ message: "No se pudo actualizar la notificacion" });
+    return res.status(500).json({ message: "No se pudo actualizar la notificación" });
   }
 }
 
@@ -38,7 +38,7 @@ export async function marcarTodasLeidas(req, res) {
   try {
     const resultado = await service.marcarTodasLeidas(req.user.id);
     return res.status(200).json({
-      message: "Notificaciones marcadas como leidas",
+      message: "Notificaciones marcadas como leídas",
       actualizadas: resultado.modifiedCount,
     });
   } catch (error) {
@@ -55,13 +55,13 @@ export async function eliminar(req, res) {
     );
 
     if (!resultado.deletedCount) {
-      return res.status(404).json({ message: "Notificacion no encontrada" });
+      return res.status(404).json({ message: "Notificación no encontrada" });
     }
 
-    return res.status(200).json({ message: "Notificacion eliminada" });
+    return res.status(200).json({ message: "Notificación eliminada" });
   } catch (error) {
     console.error("[eliminarNotificacion]", error);
-    return res.status(500).json({ message: "No se pudo eliminar la notificacion" });
+    return res.status(500).json({ message: "No se pudo eliminar la notificación" });
   }
 }
 
@@ -69,7 +69,7 @@ export async function eliminarLeidas(req, res) {
   try {
     const resultado = await service.eliminarNotificacionesLeidas(req.user.id);
     return res.status(200).json({
-      message: "Notificaciones leidas eliminadas",
+      message: "Notificaciones leídas eliminadas",
       eliminadas: resultado.deletedCount,
     });
   } catch (error) {
@@ -110,7 +110,7 @@ export async function eliminarSuscripcionPush(req, res) {
   } catch (error) {
     console.error("[eliminarSuscripcionPush]", error);
     return res.status(500).json({
-      message: "No se pudo eliminar la suscripcion push",
+      message: "No se pudo eliminar la suscripción push",
     });
   }
 }

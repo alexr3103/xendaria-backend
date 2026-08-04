@@ -24,13 +24,13 @@ export async function guardarCalificacionPunto(req, res) {
     });
 
     return res.status(200).json({
-      message: "Calificacion guardada correctamente",
+      message: "Calificación guardada correctamente",
       calificacion: resultado.calificacion,
       resumen: resultado.resumen,
     });
   } catch (error) {
     console.error("[guardarCalificacionPunto]", error);
-    return responderError(res, error, "Error al guardar calificacion");
+    return responderError(res, error, "Error al guardar la calificación");
   }
 }
 
@@ -57,7 +57,7 @@ export async function getMiCalificacionPunto(req, res) {
     return res.status(200).json({ calificacion });
   } catch (error) {
     console.error("[getMiCalificacionPunto]", error);
-    return responderError(res, error, "Error al obtener tu calificacion");
+    return responderError(res, error, "Error al obtener tu calificación");
   }
 }
 

@@ -16,7 +16,7 @@ function validarEstrellas(estrellas) {
   const numero = Number(estrellas);
 
   if (!Number.isInteger(numero) || numero < 1 || numero > 5) {
-    const error = new Error("La calificacion debe ser un numero entero entre 1 y 5");
+    const error = new Error("La calificación debe ser un número entero entre 1 y 5");
     error.status = 400;
     throw error;
   }
@@ -39,7 +39,7 @@ function normalizarCoordenadasActuales(body = {}) {
   const lonNumber = Number(lon);
 
   if (!Number.isFinite(latNumber) || !Number.isFinite(lonNumber)) {
-    const error = new Error("Se requiere la ubicacion actual para calificar");
+    const error = new Error("Se requiere la ubicación actual para calificar");
     error.status = 400;
     throw error;
   }
@@ -109,7 +109,7 @@ export async function guardarCalificacion({
   });
 
   if (!visita) {
-    const error = new Error("Solo podes calificar puntos que ya visitaste");
+    const error = new Error("Solo podés calificar puntos que ya visitaste");
     error.status = 403;
     throw error;
   }
@@ -119,7 +119,7 @@ export async function guardarCalificacion({
   const distanciaMetros = calcularDistanciaMetros(coordsUsuario, coordsPunto);
 
   if (distanciaMetros > RADIO_CALIFICACION_METROS) {
-    const error = new Error("Tenes que estar en el punto para calificarlo");
+    const error = new Error("Tenés que estar en el punto para calificarlo");
     error.status = 403;
     error.distanciaMetros = Math.round(distanciaMetros);
     throw error;

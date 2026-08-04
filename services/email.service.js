@@ -442,7 +442,7 @@ export async function enviarConfirmacionCompra(destinatario, orden) {
     });
 
   } catch (error) {
-    console.error("No se pudo enviar el mail de confirmacion", error);
+    console.error("No se pudo enviar el mail de confirmación", error);
   }
 }
 

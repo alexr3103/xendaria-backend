@@ -48,7 +48,7 @@ function toObjectId(valor, nombre = "id") {
   const id = typeof valor === "object" ? valor?.idPunto || valor?._id || valor?.id : valor;
 
   if (!id || !ObjectId.isValid(id)) {
-    throw crearError(`${nombre} no es un ObjectId valido`);
+    throw crearError(`${nombre} no es un ObjectId válido`);
   }
 
   return new ObjectId(id);
@@ -71,7 +71,7 @@ function normalizarPuntosIds(puntos) {
   }
 
   if (ids.length < 3) {
-    throw crearError("Una ruta recomendada necesita minimo 3 puntos");
+    throw crearError("Una ruta recomendada necesita mínimo 3 puntos");
   }
 
   return ids;
@@ -88,7 +88,7 @@ function validarCategoria(categoria) {
   const value = String(categoria || "").trim();
 
   if (!CATEGORIAS_RUTAS.includes(value)) {
-    throw crearError("Categoria de ruta invalida");
+    throw crearError("Categoría de ruta inválida");
   }
 
   return value;
@@ -393,11 +393,11 @@ function normalizarModoRuta(modo, ruta) {
   const value = String(modo || "corta").trim().toLowerCase();
 
   if (!MODOS_RUTA.has(value)) {
-    throw crearError("Modo de ruta invalido");
+    throw crearError("Modo de ruta inválido");
   }
 
   if (value === "larga" && (ruta.puntos || []).length <= 3) {
-    throw crearError("La ruta larga solo esta disponible con mas de 3 puntos");
+    throw crearError("La ruta larga solo está disponible con más de 3 puntos");
   }
 
   return value;
@@ -435,7 +435,7 @@ function normalizarPuntosCompletados(puntosCompletados = [], ruta) {
 
 function validarPuntosCompletadosParaModo(ruta, modo, puntosCompletadosIds) {
   if (puntosCompletadosIds.length < 3) {
-    throw crearError("Para completar una ruta tenes que pasar por minimo 3 puntos");
+    throw crearError("Para completar una ruta tenés que pasar por mínimo 3 puntos");
   }
 
   if (modo !== "larga") return;
@@ -446,7 +446,7 @@ function validarPuntosCompletadosParaModo(ruta, modo, puntosCompletadosIds) {
     .filter((id) => !completados.has(id));
 
   if (faltantes.length > 0) {
-    throw crearError("Para completar una ruta larga tenes que pasar por todos los puntos", 400, {
+    throw crearError("Para completar una ruta larga tenés que pasar por todos los puntos", 400, {
       puntosInvalidos: faltantes,
     });
   }

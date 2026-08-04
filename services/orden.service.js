@@ -300,7 +300,7 @@ export async function getOrdenById(id) {
 
 export async function actualizarEstadoOrden(idOrden, estado) {
   if (!ESTADOS_ORDEN_ADMIN.has(estado)) {
-    const error = new Error("Estado de orden invalido");
+    const error = new Error("Estado de orden inválido");
     error.statusCode = 400;
     throw error;
   }

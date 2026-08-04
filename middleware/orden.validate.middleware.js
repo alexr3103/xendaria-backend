@@ -3,7 +3,7 @@ import { datosEnvioSchema } from "../schemas/orden.js";
 import { getMensajeValidacion } from "../utils/errores.js";
 
 const crearCheckoutMercadoPagoSchema = yup.object({
-    datosEnvio: datosEnvioSchema.required("Los datos de envio son obligatorios"),
+    datosEnvio: datosEnvioSchema.required("Los datos de envío son obligatorios"),
 });
 
 export async function validateCrearCheckoutMercadoPago(req, res, next) {

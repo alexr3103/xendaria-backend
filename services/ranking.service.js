@@ -130,7 +130,7 @@ export async function getMiPosicionRanking(idUsuario, { criterio = "visitas" } =
     return {
       visible: false,
       message:
-        "Tu posicion no se puede mostrar porque tenes desactivada la participacion en ranking.",
+        "Tu posición no se puede mostrar porque tenés desactivada la participación en el ranking.",
     };
   }
 
@@ -160,7 +160,7 @@ export async function getMiPosicionRanking(idUsuario, { criterio = "visitas" } =
     totalVisitados: Array.isArray(usuario.puntos_visitados)
       ? usuario.puntos_visitados.length
       : 0,
-    message: "Todavia no tenes visitas suficientes para aparecer en el ranking.",
+    message: "Todavía no tenés visitas suficientes para aparecer en el ranking.",
   };
 }
 

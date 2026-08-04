@@ -7,7 +7,7 @@ export function validateCantidad(req, res, next) {
     Number(cantidad) < 1
   ) {
     return res.status(400).json({
-      message: "La cantidad debe ser un numero entero mayor o igual a 1",
+      message: "La cantidad debe ser un número entero mayor o igual a 1",
     });
   }
 

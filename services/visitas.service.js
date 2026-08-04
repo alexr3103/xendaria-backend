@@ -58,7 +58,7 @@ function normalizarCoordenadasActuales(ubicacionActual = {}) {
     lng > 180
   ) {
     throw crearErrorUbicacion(
-      "Se requiere una ubicacion actual valida para registrar la visita",
+      "Se requiere una ubicación actual válida para registrar la visita",
       400
     );
   }
@@ -72,7 +72,7 @@ function getCoordenadasPunto(punto = {}) {
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     throw crearErrorUbicacion(
-      "El punto no tiene una ubicacion valida",
+      "El punto no tiene una ubicación válida",
       400
     );
   }
@@ -108,7 +108,7 @@ function validarCercaniaPunto(punto, ubicacionActual) {
 
   if (distanciaMetros > radioPermitidoMetros) {
     throw crearErrorUbicacion(
-      `Necesitas estar a menos de ${radioPermitidoMetros} metros del punto para registrar la visita`,
+      `Necesitás estar a menos de ${radioPermitidoMetros} metros del punto para registrar la visita`,
       403
     );
   }

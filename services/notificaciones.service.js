@@ -127,7 +127,7 @@ export async function guardarSuscripcionPush(idUsuario, suscripcion = {}) {
     !suscripcion.keys?.p256dh ||
     !suscripcion.keys?.auth
   ) {
-    const error = new Error("La suscripcion push no es valida");
+    const error = new Error("La suscripción push no es válida");
     error.status = 400;
     throw error;
   }

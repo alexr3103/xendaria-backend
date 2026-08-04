@@ -104,7 +104,7 @@ const historiaSchema = yup.object({
   titulo: yup
     .string()
     .trim()
-    .required("Titulo de historia requerido").max(120),
+    .required("Título de historia requerido").max(120),
 
   contenido: yup
     .string()

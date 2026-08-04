@@ -98,7 +98,7 @@ export async function crearPreferenciaPago(orden) {
 
   if (orden.costoEnvio > 0) {
     items.push({
-      title: "Costo de envio",
+      title: "Costo de envío",
       quantity: 1,
       unit_price: Number(orden.costoEnvio),
       currency_id: "ARS",

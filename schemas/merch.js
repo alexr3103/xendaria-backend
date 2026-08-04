@@ -10,7 +10,7 @@ const varianteSchema = yup.object({
 const imagenSchema = yup.object({
   url: yup
     .string()
-    .url("La URL de la imagen no es valida")
+    .url("La URL de la imagen no es válida")
     .required("La URL de la imagen es obligatoria"),
 
   publicId: yup
@@ -33,7 +33,7 @@ export const productoMerchSchema = yup.object({
   descripcion: yup
     .string()
     .trim()
-    .required("La descripcion es obligatoria")
+    .required("La descripción es obligatoria")
     .max(1000),
 
   precio: yup
@@ -43,19 +43,19 @@ export const productoMerchSchema = yup.object({
 
   stock: yup
     .number()
-    .integer("El stock debe ser un numero entero")
+    .integer("El stock debe ser un número entero")
     .required("El stock es obligatorio")
     .min(0),
 
   categoria: yup
     .string()
     .trim()
-    .required("La categoria es obligatoria")
+    .required("La categoría es obligatoria")
     .max(80),
 
   imagen: yup
     .string()
-    .url("La imagen debe ser una URL valida")
+    .url("La imagen debe ser una URL válida")
     .optional(),
 
   imagenes: yup

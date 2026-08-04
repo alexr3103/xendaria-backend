@@ -67,6 +67,6 @@ export async function getMiPosicionRanking(req, res) {
     return res.status(200).json(posicion);
   } catch (error) {
     console.error("[getMiPosicionRanking]", error);
-    return res.status(500).json({ message: "Error al obtener tu posicion" });
+    return res.status(500).json({ message: "Error al obtener tu posición" });
   }
 }

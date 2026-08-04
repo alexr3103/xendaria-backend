@@ -21,7 +21,7 @@ export async function getTitulos(req, res) {
     return res.status(200).json(titulos);
   } catch (err) {
     console.error("[getTitulos]", err);
-    return res.status(500).json({ message: "No se pudieron obtener los titulos" });
+    return res.status(500).json({ message: "No se pudieron obtener los títulos" });
   }
 }
 
@@ -29,7 +29,7 @@ export async function crearTitulo(req, res) {
   try {
     const titulo = await serviceTitulos.crearTitulo(req.body);
     return res.status(201).json({
-      message: "Titulo creado correctamente",
+      message: "Título creado correctamente",
       titulo,
     });
   } catch (err) {
@@ -41,10 +41,10 @@ export async function crearTitulo(req, res) {
 export async function editarTitulo(req, res) {
   try {
     const titulo = await serviceTitulos.editarTitulo(req.params.idTitulo, req.body);
-    if (!titulo) return res.status(404).json({ message: "Titulo no encontrado" });
+    if (!titulo) return res.status(404).json({ message: "Título no encontrado" });
 
     return res.status(200).json({
-      message: "Titulo actualizado correctamente",
+      message: "Título actualizado correctamente",
       titulo,
     });
   } catch (err) {
@@ -57,13 +57,13 @@ export async function eliminarTitulo(req, res) {
   try {
     const resultado = await serviceTitulos.eliminarTitulo(req.params.idTitulo);
     if (!resultado.deletedCount) {
-      return res.status(404).json({ message: "Titulo no encontrado" });
+      return res.status(404).json({ message: "Título no encontrado" });
     }
 
-    return res.status(200).json({ message: "Titulo eliminado correctamente" });
+    return res.status(200).json({ message: "Título eliminado correctamente" });
   } catch (err) {
     console.error("[eliminarTitulo]", err);
-    return res.status(500).json({ message: "No se pudo eliminar el titulo" });
+    return res.status(500).json({ message: "No se pudo eliminar el título" });
   }
 }
 
@@ -73,7 +73,7 @@ export async function getMisTitulos(req, res) {
     return res.status(200).json(titulos);
   } catch (err) {
     console.error("[getMisTitulos]", err);
-    return res.status(500).json({ message: "No se pudieron obtener tus titulos" });
+    return res.status(500).json({ message: "No se pudieron obtener tus títulos" });
   }
 }
 
@@ -85,7 +85,7 @@ export async function seleccionarMiTitulo(req, res) {
     );
 
     return res.status(200).json({
-      message: "Titulo elegido correctamente",
+      message: "Título elegido correctamente",
       ...titulos,
     });
   } catch (err) {

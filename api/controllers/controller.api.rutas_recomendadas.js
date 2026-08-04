@@ -16,7 +16,7 @@ async function notificarRutaPublicada(ruta) {
 
     if (!resultado.disponible) {
       console.warn(
-        "[notificarRutaPublicada] Las credenciales VAPID no estan configuradas"
+        "[notificarRutaPublicada] Las credenciales VAPID no están configuradas"
       );
     } else if (resultado.sinDestinatarios) {
       console.warn(
@@ -24,7 +24,7 @@ async function notificarRutaPublicada(ruta) {
       );
     } else if (!resultado.enviados && !resultado.duplicado) {
       console.warn(
-        `[notificarRutaPublicada] No se pudo entregar la notificacion de ${ruta.nombre}`
+        `[notificarRutaPublicada] No se pudo entregar la notificación de ${ruta.nombre}`
       );
     }
   } catch (error) {

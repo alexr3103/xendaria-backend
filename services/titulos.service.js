@@ -12,7 +12,7 @@ const TITULOS_DEFAULT = [
   {
     categoria: "sin_visitas",
     titulo: "Explorador de la nada misma",
-    descripcion: "Titulo inicial mientras todavia no registra visitas.",
+    descripcion: "Título inicial mientras todavía no registra visitas.",
     umbral: 0,
     orden: 0,
     esDefault: true,
@@ -20,36 +20,36 @@ const TITULOS_DEFAULT = [
   {
     categoria: "con_visitas_sin_titulo",
     titulo: "Explorador petite",
-    descripcion: "Titulo base cuando ya tiene visitas pero aun no desbloqueo otro titulo.",
+    descripcion: "Título base cuando ya tiene visitas pero aún no desbloqueó otro título.",
     umbral: 0,
     orden: 1,
     esDefault: true,
   },
   {
     categoria: "puntos_populares",
-    titulo: "Cazadora de iconos",
+    titulo: "Cazadora de íconos",
     descripcion: "Por visitar lugares populares de la ciudad.",
     umbral: 5,
     orden: 10,
   },
   {
     categoria: "paradas_de_bus_turistico",
-    titulo: "Guia de recorridos",
-    descripcion: "Por visitar puntos conectados al circuito turistico.",
+    titulo: "Guía de recorridos",
+    descripcion: "Por visitar puntos conectados al circuito turístico.",
     umbral: 5,
     orden: 20,
   },
   {
     categoria: "paseo_de_la_historieta",
-    titulo: "Guardiana de vinetas",
+    titulo: "Guardiana de viñetas",
     descripcion: "Por visitar lugares vinculados a la historieta.",
     umbral: 5,
     orden: 30,
   },
   {
     categoria: "espacios_verdes_publicos",
-    titulo: "Guardian de parques",
-    descripcion: "Por visitar parques y espacios verdes publicos.",
+    titulo: "Guardián de parques",
+    descripcion: "Por visitar parques y espacios verdes públicos.",
     umbral: 5,
     orden: 40,
   },
@@ -63,7 +63,7 @@ const TITULOS_DEFAULT = [
   {
     categoria: "lugares_de_esparcimiento",
     titulo: "Maestra del paseo",
-    descripcion: "Por visitar lugares de recreacion y esparcimiento.",
+    descripcion: "Por visitar lugares de recreación y esparcimiento.",
     umbral: 5,
     orden: 60,
   },
@@ -123,13 +123,13 @@ function normalizarTituloInput(data = {}, actual = {}) {
     data.activo !== undefined ? Boolean(data.activo) : actual.activo !== false;
 
   if (!categoria) {
-    const error = new Error("La categoria es obligatoria");
+    const error = new Error("La categoría es obligatoria");
     error.status = 400;
     throw error;
   }
 
   if (!titulo) {
-    const error = new Error("El titulo es obligatorio");
+    const error = new Error("El título es obligatorio");
     error.status = 400;
     throw error;
   }
@@ -140,7 +140,7 @@ function normalizarTituloInput(data = {}, actual = {}) {
     umbral < 0 ||
     (!permiteUmbralCero && umbral < 1)
   ) {
-    const error = new Error("El umbral no es valido para este titulo");
+    const error = new Error("El umbral no es válido para este título");
     error.status = 400;
     throw error;
   }
@@ -376,7 +376,7 @@ export async function getTitulosUsuario(idUsuario) {
 
 export async function seleccionarTituloUsuario(idUsuario, idTitulo) {
   if (!ObjectId.isValid(idTitulo)) {
-    const error = new Error("El titulo seleccionado no es valido");
+    const error = new Error("El título seleccionado no es válido");
     error.status = 400;
     throw error;
   }
@@ -387,7 +387,7 @@ export async function seleccionarTituloUsuario(idUsuario, idTitulo) {
   );
 
   if (!tituloSeleccionado) {
-    const error = new Error("Todavia no desbloqueaste ese titulo");
+    const error = new Error("Todavía no desbloqueaste ese título");
     error.status = 403;
     throw error;
   }

@@ -22,7 +22,7 @@ const itemCarritoSchema = yup.object({
 
   imagen: yup
     .string()
-    .url("La imagen debe ser una URL valida")
+    .url("La imagen debe ser una URL válida")
     .optional(),
 
   precioUnitario: yup
@@ -32,7 +32,7 @@ const itemCarritoSchema = yup.object({
 
   cantidad: yup
     .number()
-    .integer("La cantidad debe ser un numero entero")
+    .integer("La cantidad debe ser un número entero")
     .required("La cantidad es obligatoria")
     .min(1),
 

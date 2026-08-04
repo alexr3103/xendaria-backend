@@ -120,7 +120,7 @@ function crearPuntoDesdeBody(body) {
       disponible: false,
       estado: null,
       panoId: null,
-      mensaje: "Vista 360 todavia no verificada",
+      mensaje: "Vista 360 todavía no verificada",
       ultimaVerificacion: null,
     },
     foto: body.foto || "",
@@ -221,7 +221,7 @@ export async function nuevoPunto(req, res) {
         );
       }
       return res.status(200).json({
-        message: "El punto ya existia y se fusiono con sus categorias",
+        message: "El punto ya existía y se fusionó con sus categorías",
         fusionado: true,
         punto: fusionado,
       });
@@ -322,7 +322,7 @@ export async function editarPunto(req, res) {
       const historias = normalizarHistorias(data.historias);
       if (historias.some((historia) => !historia.titulo || !historia.contenido)) {
         return res.status(400).json({
-          message: "Cada historia necesita titulo y contenido",
+          message: "Cada historia necesita título y contenido",
         });
       }
       data.historias = historias;
@@ -384,7 +384,7 @@ export async function editarPunto(req, res) {
 
       if (duplicado) {
         return res.status(409).json({
-          message: "Ya existe otro punto con ese nombre y esa ubicacion",
+          message: "Ya existe otro punto con ese nombre y esa ubicación",
           puntoId: duplicado._id,
         });
       }
@@ -417,7 +417,7 @@ export async function reemplazarPunto(req, res) {
 
     if (duplicado) {
       return res.status(409).json({
-        message: "Ya existe otro punto con ese nombre y esa ubicacion",
+        message: "Ya existe otro punto con ese nombre y esa ubicación",
         puntoId: duplicado._id,
       });
     }
@@ -466,7 +466,7 @@ export async function verificarVista360(req, res) {
 
     if (error.code === "STREET_VIEW_NOT_CONFIGURED") {
       return res.status(503).json({
-        message: "La verificacion de Street View no esta configurada",
+        message: "La verificación de Street View no está configurada",
       });
     }
 
@@ -525,11 +525,11 @@ export async function agregarMultimedia(req, res) {
     const { tipo, url, titulo = "", descripcion = "", fuente = "" } = req.body;
 
     if (!TIPOS_MULTIMEDIA.has(tipo)) {
-      return res.status(400).json({ message: "Tipo de contenido multimedia invalido" });
+      return res.status(400).json({ message: "Tipo de contenido multimedia inválido" });
     }
 
     if (!validarUrlMultimedia(tipo, url)) {
-      return res.status(400).json({ message: "URL multimedia invalida para el tipo indicado" });
+      return res.status(400).json({ message: "URL multimedia inválida para el tipo indicado" });
     }
 
     const contenido = {

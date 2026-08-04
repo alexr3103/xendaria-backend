@@ -79,7 +79,7 @@ export async function loginGoogle(req, res) {
         return res.status(428).json({
           code: "TERMINOS_REQUERIDOS",
           message:
-            "Acepta los terminos y la politica de privacidad para crear tu cuenta.",
+            "Aceptá los términos y la política de privacidad para crear tu cuenta.",
         });
       }
 
@@ -302,7 +302,7 @@ export async function editarUsuario(req, res) {
     const id = req.params.id;
 
     if (!usuarioPuedeGestionar(req, id) && req.user?.role !== "admin") {
-      return res.status(403).json({ message: "No podes editar otro usuario" });
+      return res.status(403).json({ message: "No podés editar otro usuario" });
     }
 
     const usuarioActual = await serviceUsuarios.getUsuariosById(id);
@@ -411,7 +411,7 @@ export async function cambiarPasswordUsuario(req, res) {
     const id = req.params.id;
 
     if (!usuarioPuedeGestionar(req, id)) {
-      return res.status(403).json({ message: "No podes cambiar la contraseña de otro usuario" });
+      return res.status(403).json({ message: "No podés cambiar la contraseña de otro usuario" });
     }
 
     const { passwordActual, passwordNueva, passwordConfirm } = req.body;
@@ -792,12 +792,12 @@ export async function nuevoPunto(req, res) {
   const idUsuario = req.params.idUsuario;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes crear puntos para otro usuario" });
+    return res.status(403).json({ message: "No podés crear puntos para otro usuario" });
   }
 
   if (esCategoriaComercio(req.body.categoria)) {
     return res.status(400).json({
-      message: "La categoria Comercios solo puede ser administrada por un administrador",
+      message: "La categoría Comercios solo puede ser administrada por un administrador",
     });
   }
 
@@ -854,7 +854,7 @@ export async function getPuntoUsuario(req, res) {
   const idUsuario = req.params.idUsuario;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes ver puntos de otro usuario" });
+    return res.status(403).json({ message: "No podés ver puntos de otro usuario" });
   }
 
   try {
@@ -873,7 +873,7 @@ export async function getPuntoPropioById(req, res) {
   const { idUsuario, idPunto } = req.params;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes ver puntos de otro usuario" });
+    return res.status(403).json({ message: "No podés ver puntos de otro usuario" });
   }
 
   try {
@@ -891,12 +891,12 @@ export async function editarPuntoPropio(req, res) {
   const { idUsuario, idPunto } = req.params;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes editar puntos de otro usuario" });
+    return res.status(403).json({ message: "No podés editar puntos de otro usuario" });
   }
 
   if (esCategoriaComercio(req.body.categoria)) {
     return res.status(400).json({
-      message: "La categoria Comercios solo puede ser administrada por un administrador",
+      message: "La categoría Comercios solo puede ser administrada por un administrador",
     });
   }
 
@@ -953,7 +953,7 @@ export async function editarPuntoPropio(req, res) {
           disponible: false,
           estado: null,
           panoId: null,
-          mensaje: "Vista 360 todavia no verificada",
+          mensaje: "Vista 360 todavía no verificada",
           ultimaVerificacion: null,
         },
       });
@@ -980,7 +980,7 @@ export async function eliminarPuntoPropio(req, res) {
   const { idUsuario, idPunto } = req.params;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes eliminar puntos de otro usuario" });
+    return res.status(403).json({ message: "No podés eliminar puntos de otro usuario" });
   }
 
   try {
@@ -1004,7 +1004,7 @@ export async function consultarVista360PuntoPropio(req, res) {
   const { idUsuario, idPunto } = req.params;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes consultar puntos de otro usuario" });
+    return res.status(403).json({ message: "No podés consultar puntos de otro usuario" });
   }
 
   try {
@@ -1039,7 +1039,7 @@ export async function consultarVista360PuntoPropio(req, res) {
 
     if (error.code === "STREET_VIEW_NOT_CONFIGURED") {
       return res.status(503).json({
-        message: "La verificacion de Street View no esta configurada",
+        message: "La verificación de Street View no está configurada",
       });
     }
 
@@ -1123,7 +1123,7 @@ export async function borrarHistorialVisitas(req, res) {
   const idUsuario = req.params.idUsuario;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes borrar visitas de otro usuario" });
+    return res.status(403).json({ message: "No podés borrar visitas de otro usuario" });
   }
 
   try {
@@ -1151,7 +1151,7 @@ export async function registrarPuntoVisitado(req, res) {
   const ubicacionActual = req.body.ubicacionActual;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes registrar visitas de otro usuario" });
+    return res.status(403).json({ message: "No podés registrar visitas de otro usuario" });
   }
 
   try {
@@ -1200,7 +1200,7 @@ export async function nuevoLugarFavorito(req, res) {
   const idPunto = req.body.idPunto;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes modificar favoritos de otro usuario" });
+    return res.status(403).json({ message: "No podés modificar favoritos de otro usuario" });
   }
 
   if (!idPunto) return res.status(400).json({ message: "Falta idPunto en el body" });
@@ -1231,7 +1231,7 @@ export async function eliminarLugarFavorito(req, res) {
   const idPunto = req.params.idPunto;
 
   if (!usuarioPuedeGestionar(req, idUsuario)) {
-    return res.status(403).json({ message: "No podes modificar favoritos de otro usuario" });
+    return res.status(403).json({ message: "No podés modificar favoritos de otro usuario" });
   }
 
   if (!idPunto) {

@@ -422,7 +422,7 @@ export async function seguirUsuario(idUsuario, idObjetivo) {
   const objetivoId = new ObjectId(idObjetivo);
 
   if (usuarioId.equals(objetivoId)) {
-    const error = new Error("No podes seguirte a vos mismo");
+    const error = new Error("No podés seguirte a vos mismo");
     error.status = 400;
     throw error;
   }

@@ -17,14 +17,14 @@ function construirAlertaStock(stock = 0) {
   if (stock === 1) {
     return {
       tipo: "ultima_unidad",
-      mensaje: "Ultima unidad",
+      mensaje: "Última unidad",
     };
   }
 
   if (stock <= 3) {
     return {
       tipo: "ultimas_unidades",
-      mensaje: "Ultimas unidades",
+      mensaje: "Últimas unidades",
     };
   }
 

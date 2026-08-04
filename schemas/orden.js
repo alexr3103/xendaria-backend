@@ -28,7 +28,7 @@ export const itemOrdenSchema = yup.object({
 
   cantidad: yup
     .number()
-    .integer("La cantidad debe ser un numero entero")
+    .integer("La cantidad debe ser un número entero")
     .required("La cantidad es obligatoria")
     .min(1),
 
@@ -50,7 +50,7 @@ export const datosEnvioSchema = yup.object({
   telefono: yup
     .string()
     .trim()
-    .required("El telefono es obligatorio")
+    .required("El teléfono es obligatorio")
     .max(40),
 
   calle: yup
@@ -62,7 +62,7 @@ export const datosEnvioSchema = yup.object({
   numero: yup
     .string()
     .trim()
-    .required("El numero es obligatorio")
+    .required("El número es obligatorio")
     .max(20),
 
   pisoDepto: yup
@@ -112,7 +112,7 @@ export const datosEnvioSchema = yup.object({
   codigoPostal: yup
     .string()
     .trim()
-    .required("El codigo postal es obligatorio")
+    .required("El código postal es obligatorio")
     .max(20),
 
   referencias: yup
@@ -126,7 +126,7 @@ export const pagoSchema = yup.object({
   metodo: yup
     .string()
     .oneOf(["mercado_pago", "tarjeta"])
-    .required("El metodo de pago es obligatorio"),
+    .required("El método de pago es obligatorio"),
 
   marcaTarjeta: yup
     .string()
@@ -138,7 +138,7 @@ export const pagoSchema = yup.object({
     .string()
     .nullable()
     .optional()
-    .matches(LAST_FOUR_DIGITS_REGEX, "Los ultimos 4 deben tener 4 digitos"),
+    .matches(LAST_FOUR_DIGITS_REGEX, "Los últimos 4 deben tener 4 dígitos"),
 
   proveedor: yup
     .string()
@@ -161,7 +161,7 @@ export const ordenSchema = yup.object({
   numeroCompra: yup
     .string()
     .trim()
-    .required("El numero de compra es obligatorio")
+    .required("El número de compra es obligatorio")
     .max(40),
 
   estado: yup
@@ -188,7 +188,7 @@ export const ordenSchema = yup.object({
 
   costoEnvio: yup
     .number()
-    .required("El costo de envio es obligatorio")
+    .required("El costo de envío es obligatorio")
     .min(0),
 
   total: yup
@@ -196,7 +196,7 @@ export const ordenSchema = yup.object({
     .required("El total es obligatorio")
     .min(0),
 
-  datosEnvio: datosEnvioSchema.required("Los datos de envio son obligatorios"),
+  datosEnvio: datosEnvioSchema.required("Los datos de envío son obligatorios"),
 
   pago: pagoSchema.required("Los datos de pago son obligatorios"),
 });
