@@ -5,55 +5,50 @@ import { validateObjectId } from "../../middleware/objectid.validate.middleware.
 
 const route = Router();
 
+route.use(verifyToken);
+
 route.get("/categorias", controllers.getCategoriasRutas);
-route.get("/mis-realizadas", verifyToken, controllers.getMisRutasRealizadas);
-route.get("/con-estado", verifyToken, controllers.getRutasConEstadoUsuario);
-route.get("/admin/todas", verifyToken, requireAdmin, controllers.getRutasAdmin);
+route.get("/mis-realizadas", controllers.getMisRutasRealizadas);
+route.get("/con-estado", controllers.getRutasConEstadoUsuario);
+route.get("/admin/todas", requireAdmin, controllers.getRutasAdmin);
 
 route.get("/", controllers.getRutas);
-route.post("/", verifyToken, requireAdmin, controllers.crearRuta);
+route.post("/", requireAdmin, controllers.crearRuta);
 
 route.get(
   "/:idRuta/estado",
-  verifyToken,
   validateObjectId("idRuta"),
   controllers.getEstadoRutaUsuario
 );
 route.post(
   "/:idRuta/completar",
-  verifyToken,
   validateObjectId("idRuta"),
   controllers.registrarRutaRealizada
 );
 route.get(
   "/:idRuta/progreso",
-  verifyToken,
   validateObjectId("idRuta"),
   controllers.getProgresoRutaUsuario
 );
 route.patch(
   "/:idRuta/progreso",
-  verifyToken,
   validateObjectId("idRuta"),
   controllers.guardarProgresoRuta
 );
 route.delete(
   "/:idRuta/progreso",
-  verifyToken,
   validateObjectId("idRuta"),
   controllers.descartarProgresoRuta
 );
 route.get("/:idRuta", validateObjectId("idRuta"), controllers.getRutaById);
 route.patch(
   "/:idRuta",
-  verifyToken,
   requireAdmin,
   validateObjectId("idRuta"),
   controllers.editarRuta
 );
 route.delete(
   "/:idRuta",
-  verifyToken,
   requireAdmin,
   validateObjectId("idRuta"),
   controllers.eliminarRuta
