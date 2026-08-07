@@ -69,6 +69,20 @@ export async function getRankingUsuarios({
   const resultados = await visitasCollection()
     .aggregate([
       {
+        $lookup: {
+          from: "puntos_visitables",
+          localField: "idPunto",
+          foreignField: "_id",
+          as: "punto",
+        },
+      },
+      { $unwind: "$punto" },
+      {
+        $match: {
+          "punto.creadoPor": { $exists: false },
+        },
+      },
+      {
         $group: {
           _id: "$idUsuario",
           totalVisitados: { $sum: 1 },
@@ -157,9 +171,7 @@ export async function getMiPosicionRanking(idUsuario, { criterio = "visitas" } =
     nombre: usuario.nombre || "Xendarian",
     foto: usuario.foto || "",
     totalInsignias: Array.isArray(usuario.insignias) ? usuario.insignias.length : 0,
-    totalVisitados: Array.isArray(usuario.puntos_visitados)
-      ? usuario.puntos_visitados.length
-      : 0,
+    totalVisitados: 0,
     message: "Todavía no tenés visitas suficientes para aparecer en el ranking.",
   };
 }
