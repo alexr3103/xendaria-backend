@@ -12,6 +12,10 @@ function collection() {
   return db.collection("ordenes");
 }
 
+function contadoresCollection() {
+  return getDB().collection("contadores_ordenes");
+}
+
 const ESTADOS_PAGO_CONFIRMADO = new Set(["pagada", "procesando", "enviada"]);
 const ESTADOS_ORDEN_ADMIN = new Set([
   "pagada",
@@ -116,24 +120,60 @@ function mismaVariante(varianteA, varianteB) {
 
 async function generarNumeroCompra() {
   const fecha = new Date();
-  const anio = fecha.getFullYear();
-  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const partesFecha = new Intl.DateTimeFormat("en", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(fecha);
+  const anio = partesFecha.find((parte) => parte.type === "year").value;
+  const mes = partesFecha.find((parte) => parte.type === "month").value;
 
   const prefijoMes = `${anio}${mes}`;
+  const ultimaOrden = await collection()
+    .find({
+      numeroCompra: {
+        $regex: `^XEN-${prefijoMes}-\\d{4}$`,
+      },
+    })
+    .sort({ numeroCompra: -1 })
+    .project({ numeroCompra: 1 })
+    .limit(1)
+    .next();
+  const ultimoNumero = Number(ultimaOrden?.numeroCompra?.split("-").pop()) || 0;
 
-  const inicioMes = new Date(fecha.getFullYear(), fecha.getMonth(), 1, 0, 0, 0, 0);
-  const finMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0, 23, 59, 59, 999);
+  const contador = await contadoresCollection().findOneAndUpdate(
+    { _id: prefijoMes },
+    [
+      {
+        $set: {
+          secuencia: {
+            $add: [
+              {
+                $max: [
+                  { $ifNull: ["$secuencia", 0] },
+                  ultimoNumero,
+                ],
+              },
+              1,
+            ],
+          },
+          updatedAt: "$$NOW",
+        },
+      },
+    ],
+    { upsert: true, returnDocument: "after" }
+  );
 
-  const cantidadMes = await collection().countDocuments({
-    createdAt: {
-      $gte: inicioMes,
-      $lte: finMes,
-    },
-  });
-
-  const numero = String(cantidadMes + 1).padStart(4, "0");
+  const numero = String(contador.secuencia).padStart(4, "0");
 
   return `XEN-${prefijoMes}-${numero}`;
+}
+
+export async function asegurarIndiceOrdenes() {
+  await collection().createIndex(
+    { numeroCompra: 1 },
+    { unique: true, name: "numeroCompra_unico" }
+  );
 }
 
 async function descontarStockDeOrden(orden) {

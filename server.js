@@ -26,6 +26,7 @@ import UploadApiRouter from "./api/routes/routes.api.upload.js";
 import MerchApiRouter from "./api/routes/routes.api.merch.js";
 import CarritoApiRouter from "./api/routes/routes.api.carrito.js";
 import OrdenApiRouter from "./api/routes/routes.api.orden.js";
+import { asegurarIndiceOrdenes } from "./services/orden.service.js";
 import MercadoPagoApiRouter from "./api/routes/routes.api.mercadopago.js";
 import EnviosApiRouter from "./api/routes/routes.api.envios.js";
 import RankingApiRouter from "./api/routes/routes.api.ranking.js";
@@ -81,6 +82,7 @@ await asegurarIndicesTitulos();
 await asegurarIndicesComercios();
 await asegurarIndicesRecompensasComercio();
 await asegurarIndicesNotificaciones();
+await asegurarIndiceOrdenes();
 
 // Rutas
 app.use("/api/puntos", PuntosApiRouter);
